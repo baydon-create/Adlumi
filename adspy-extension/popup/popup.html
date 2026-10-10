@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AdSpy Lens</title>
+  <link rel="stylesheet" href="../dashboard/theme.css" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="../icons/icon48.png" alt="" /> AdSpy Lens</div>
+    <label class="switch" title="Pause / resume capture everywhere">
+      <input type="checkbox" id="enabled" />
+      <span></span>
+    </label>
+  </header>
+
+  <section class="stats">
+    <div class="stat"><b id="total">–</b><span>Ads saved</span></div>
+    <div class="stat"><b id="today">–</b><span>New today</span></div>
+    <div class="stat"><b id="tab">–</b><span>On this tab</span></div>
+  </section>
+
+  <section id="site" class="site" hidden>
+    <span id="site-label"></span>
+    <label class="switch small"><input type="checkbox" id="site-enabled" /><span></span></label>
+  </section>
+
+  <form id="search" class="search">
+    <input id="q" type="search" placeholder="Search saved ads (advertiser, copy, domain)…" />
+  </form>
+
+  <h3>Recently seen</h3>
+  <ul id="recent" class="recent"></ul>
+
+  <footer>
+    <button id="open" class="primary">Open dashboard</button>
+    <button id="library" class="ghost" title="Open the Meta Ad Library">Ad Library ↗</button>
+  </footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

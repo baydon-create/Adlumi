@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "AdSpy Lens",
+  "version": "1.0.0",
+  "description": "Ad intelligence: capture, search and analyze ads from Facebook, Instagram, YouTube, LinkedIn, Reddit, X and Google.",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "action": { "default_popup": "popup/popup.html", "default_title": "AdSpy Lens" },
+  "options_page": "dashboard/dashboard.html",
+  "background": { "service_worker": "src/background.js", "type": "module" },
+  "permissions": ["storage", "unlimitedStorage"],
+  "host_permissions": [
+    "https://*.facebook.com/*",
+    "https://*.instagram.com/*",
+    "https://*.youtube.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.reddit.com/*",
+    "https://x.com/*",
+    "https://twitter.com/*",
+    "https://www.google.com/*",
+    "https://*.fbcdn.net/*",
+    "https://*.cdninstagram.com/*",
+    "https://*.ytimg.com/*",
+    "https://*.ggpht.com/*",
+    "https://*.googleusercontent.com/*",
+    "https://*.gstatic.com/*",
+    "https://media.licdn.com/*",
+    "https://*.redd.it/*",
+    "https://*.redditmedia.com/*",
+    "https://pbs.twimg.com/*",
+    "https://graph.facebook.com/*"
+  ],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/*", "https://web.facebook.com/*"],
+      "js": ["src/content/common.js", "src/content/facebook.js", "src/content/adlibrary.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["src/content/common.js", "src/content/instagram.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["src/content/common.js", "src/content/youtube.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.linkedin.com/*"],
+      "js": ["src/content/common.js", "src/content/linkedin.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.reddit.com/*", "https://old.reddit.com/*"],
+      "js": ["src/content/common.js", "src/content/reddit.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["src/content/common.js", "src/content/x.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.google.com/search*"],
+      "js": ["src/content/common.js", "src/content/google.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

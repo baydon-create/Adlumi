@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AdSpy Lens</title>
+  <link rel="icon" href="../icons/icon48.png" />
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <aside class="nav">
+    <div class="brand"><img src="../icons/icon48.png" alt="" /> AdSpy Lens</div>
+    <button data-view="library" class="active">🗂️ Ad Library <em id="nav-count"></em></button>
+    <button data-view="search">🔎 Meta Ad Search</button>
+    <button data-view="insights">📊 Insights</button>
+    <button data-view="settings">⚙️ Settings</button>
+    <div class="nav-foot">Data stays in your browser.</div>
+  </aside>
+
+  <main>
+    <!-- ================= LIBRARY ================= -->
+    <section id="view-library" class="view">
+      <div id="welcome" class="welcome" hidden>
+        <h2>Welcome to AdSpy Lens 👋</h2>
+        <p>Browse Facebook, Instagram, YouTube, LinkedIn, Reddit, X or Google Search as usual — every ad you scroll past is saved here automatically with its copy, creative, CTA and landing page. On the <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener">Meta Ad Library</a> you get "days running" badges and one-click saving.</p>
+        <button class="ghost" id="welcome-close">Got it</button>
+      </div>
+
+      <div class="filters">
+        <input id="f-q" type="search" placeholder="Search advertiser, ad copy, headline, domain, keyword…" />
+        <select id="f-platform"><option value="">All platforms</option></select>
+        <select id="f-media">
+          <option value="">Any media</option>
+          <option value="image">Image</option>
+          <option value="video">Video</option>
+          <option value="carousel">Carousel</option>
+          <option value="text">Text only</option>
+        </select>
+        <select id="f-cta"><option value="">Any CTA</option></select>
+        <select id="f-sort">
+          <option value="lastSeen">Recently seen</option>
+          <option value="firstSeen">Newest found</option>
+          <option value="oldest">Oldest found</option>
+          <option value="seenCount">Most seen (frequency)</option>
+          <option value="running">Longest running</option>
+          <option value="advertiser">Advertiser A–Z</option>
+        </select>
+        <details class="more">
+          <summary>More filters</summary>
+          <div class="more-grid">
+            <label>Seen from <input id="f-from" type="date" /></label>
+            <label>to <input id="f-to" type="date" /></label>
+            <label>Min. days running <input id="f-days" type="number" min="0" placeholder="0" /></label>
+            <label>Min. times seen <input id="f-seen" type="number" min="0" placeholder="0" /></label>
+            <label>Tag <input id="f-tag" type="text" placeholder="e.g. competitor" /></label>
+            <label class="check"><input id="f-fav" type="checkbox" /> Favorites only</label>
+            <label class="check"><input id="f-active" type="checkbox" /> Active only (Ad Library)</label>
+          </div>
+        </details>
+      </div>
+
+      <div class="result-bar">
+        <span id="result-count"></span>
+        <span class="spacer"></span>
+        <button class="ghost small" id="export-filtered">Export results (CSV)</button>
+      </div>
+      <div id="grid" class="grid"></div>
+      <div class="load-more"><button class="ghost" id="more" hidden>Load more</button></div>
+    </section>
+
+    <!-- ================= META AD LIBRARY API ================= -->
+    <section id="view-search" class="view" hidden>
+      <h2>Search the Meta Ad Library</h2>
+      <p class="sub">Searches Meta's official <a href="https://www.facebook.com/ads/library/api/" target="_blank" rel="noopener">Ad Library API</a> with your own access token (add it in Settings). Meta only returns commercial ads that were delivered in the EU/UK; political &amp; issue ads are returned for every country. For anything else, use the <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener">Ad Library website</a> — AdSpy adds save buttons there.</p>
+      <form id="api-form" class="filters">
+        <input id="api-q" type="search" placeholder="Keyword or brand, e.g. &quot;protein powder&quot;" required />
+        <input id="api-country" type="text" value="DE,FR,IT,ES,NL" title="Comma-separated ISO country codes" />
+        <select id="api-status">
+          <option value="ACTIVE">Active ads</option>
+          <option value="ALL">All ads</option>
+          <option value="INACTIVE">Inactive ads</option>
+        </select>
+        <select id="api-type">
+          <option value="ALL">All ad types</option>
+          <option value="POLITICAL_AND_ISSUE_ADS">Political &amp; issue</option>
+        </select>
+        <select id="api-platform">
+          <option value="">Any placement</option>
+          <option value="FACEBOOK">Facebook</option>
+          <option value="INSTAGRAM">Instagram</option>
+          <option value="MESSENGER">Messenger</option>
+          <option value="AUDIENCE_NETWORK">Audience Network</option>
+        </select>
+        <button class="primary" type="submit">Search</button>
+      </form>
+      <div id="api-status-line" class="sub"></div>
+      <div id="api-results" class="grid"></div>
+      <div class="load-more"><button class="ghost" id="api-more" hidden>Load more</button></div>
+    </section>
+
+    <!-- ================= INSIGHTS ================= -->
+    <section id="view-insights" class="view" hidden>
+      <h2>Insights</h2>
+      <div class="kpis" id="kpis"></div>
+      <div class="panels">
+        <div class="panel"><h3>Ads captured per day (last 30 days)</h3><div id="ch-daily" class="daily"></div></div>
+        <div class="panel"><h3>Top advertisers</h3><div id="ch-adv" class="bars"></div></div>
+        <div class="panel"><h3>Top landing domains</h3><div id="ch-dom" class="bars"></div></div>
+        <div class="panel"><h3>Platforms</h3><div id="ch-plat" class="bars"></div></div>
+        <div class="panel"><h3>Calls to action</h3><div id="ch-cta" class="bars"></div></div>
+        <div class="panel"><h3>Creative format</h3><div id="ch-media" class="bars"></div></div>
+        <div class="panel"><h3>Google keywords that showed ads</h3><div id="ch-kw" class="bars"></div></div>
+        <div class="panel"><h3>Longest-running ads</h3><div id="ch-long" class="bars"></div></div>
+      </div>
+    </section>
+
+    <!-- ================= SETTINGS ================= -->
+    <section id="view-settings" class="view" hidden>
+      <h2>Settings</h2>
+      <div class="panel">
+        <h3>Capture</h3>
+        <label class="row"><span>Capture ads automatically</span><span class="switch"><input type="checkbox" id="s-enabled" /><span></span></span></label>
+        <label class="row"><span>Show “AdSpy ✓” badge on captured ads</span><span class="switch"><input type="checkbox" id="s-badges" /><span></span></span></label>
+        <label class="row"><span>Store thumbnails locally (keeps previews after CDN links expire)</span><span class="switch"><input type="checkbox" id="s-thumbs" /><span></span></span></label>
+        <div id="s-platforms"></div>
+      </div>
+      <div class="panel">
+        <h3>Meta Ad Library API</h3>
+        <p class="sub">Create a token in the <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">Graph API Explorer</a> after confirming your identity at <a href="https://www.facebook.com/ID" target="_blank" rel="noopener">facebook.com/ID</a>. The token is stored only in this browser.</p>
+        <label class="row"><span>Access token</span><input type="password" id="s-token" placeholder="EAAB…" /></label>
+        <label class="row"><span>Graph API version</span><input type="text" id="s-version" /></label>
+      </div>
+      <div class="panel">
+        <h3>Data</h3>
+        <div class="actions">
+          <button class="ghost" id="export-json">Export all (JSON)</button>
+          <button class="ghost" id="export-csv">Export all (CSV)</button>
+          <label class="ghost file">Import JSON<input type="file" id="import" accept="application/json" hidden /></label>
+          <button class="danger" id="clear">Delete all data</button>
+        </div>
+        <p class="sub" id="data-status"></p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= DETAIL DRAWER ================= -->
+  <div id="drawer-backdrop" class="backdrop" hidden></div>
+  <aside id="drawer" class="drawer" hidden aria-label="Ad details"></aside>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>
