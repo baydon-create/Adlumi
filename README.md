@@ -44,7 +44,7 @@ Use the dollar figures to **compare competitors with each other**. Treat them as
 ## Install (developer mode)
 
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
-2. Click **Load unpacked** and select this `adspy-extension/` folder.
+2. Download the repo (`git clone https://github.com/baydon-create/adspy-lens.git`, or **Code → Download ZIP** and unzip it), then click **Load unpacked** and select the repo folder (the one containing `manifest.json`).
 3. Pin the extension. The dashboard opens on first install, and you can always reach it from the popup.
 4. Browse your feeds. Captured ads get a purple **AdSpy ✓** badge, and the toolbar icon shows a count for the current tab.
 
