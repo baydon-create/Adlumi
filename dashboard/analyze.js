@@ -57,16 +57,31 @@ const match = (html, list) => list.filter(([, re]) => re.test(html)).map(([name]
 
 /** Must be called from a user gesture (it may show a permission prompt). */
 export async function analyzeLanding(url) {
-  // "*.example.com" also matches the bare domain, covering www/shop redirects.
+  // Requested origins must each fit inside a manifest optional_host_permissions entry
+  // ("https://*/*" / "http://*/*"), so the schemes are listed separately; a "*://"
+  // pattern is rejected. "*.example.com" also matches the bare domain (www/shop redirects).
   const host = new URL(url).hostname.replace(/^www\./, '');
-  const granted = await chrome.permissions.request({ origins: [`*://*.${host}/*`] });
+  const sub = /^[\d.]+$|^\[/.test(host) ? host : `*.${host}`; // IP addresses can't take a wildcard
+  const granted = await chrome.permissions.request({ origins: [`https://${sub}/*`, `http://${sub}/*`] });
   if (!granted) throw new Error('Permission to read this site was not granted.');
 
-  const res = await fetch(url, { credentials: 'omit', redirect: 'follow' });
+  let res;
+  try {
+    res = await fetch(url, { credentials: 'omit', redirect: 'follow' });
+  } catch {
+    throw new Error(`Couldn't load ${host}. The page may redirect to a different domain, block automated requests, or be offline. Open the landing page in a tab to check where it goes.`);
+  }
   const html = await res.text();
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const meta = (n) => doc.querySelector(`meta[property="${n}"], meta[name="${n}"]`)?.getAttribute('content') || '';
-  const bodyText = doc.body?.textContent || '';
+  // textContent glues adjacent blocks together ("free shippingBundle") and includes
+  // script source, so collect visible text nodes and join them with spaces instead.
+  const walker = doc.createTreeWalker(doc.body || doc.documentElement, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (n.parentElement?.closest('script, style, noscript, template') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
+  const parts = [];
+  while (walker.nextNode()) parts.push(walker.currentNode.nodeValue);
+  const bodyText = parts.join(' ').replace(/\s+/g, ' ');
   const prices = [...new Set(bodyText.match(/(?:[$€£]\s?\d{1,5}(?:[.,]\d{2})?|\d{1,5}(?:[.,]\d{2})?\s?(?:€|USD|EUR|GBP))/g) || [])].slice(0, 10);
 
   const result = {
