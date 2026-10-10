@@ -32,7 +32,12 @@
         cta: A.findCta(post),
         landingUrl: A.findLanding(post, OWN),
         ...A.collectMedia(post, 160),
-        extra: { engagement: A.engagement(post), placement: 'feed' },
+        extra: {
+          engagement: A.engagement(post, {
+            reactions: A.text(post.querySelector('.social-details-social-counts__reactions-count, [data-test-id="social-actions__reaction-count"]')) || undefined,
+          }),
+          placement: 'feed',
+        },
       };
     },
   });

@@ -1,3 +1,5 @@
+import { engagementTotal } from './estimates.js';
+
 // IndexedDB storage shared by the service worker, popup and dashboard
 // (all extension pages share one origin, so they see the same database).
 
@@ -44,9 +46,23 @@ async function store(name, mode = 'readonly') {
 const isEmpty = (v) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
 
 // Fields owned by the user; captures never overwrite them.
-const USER_FIELDS = new Set(['favorite', 'tags', 'notes', 'firstSeen', 'seenCount', 'lastSeen']);
+const USER_FIELDS = new Set(['favorite', 'tags', 'notes', 'firstSeen', 'seenCount', 'lastSeen', 'history']);
+const HISTORY_MAX = 60;
+const HISTORY_MIN_GAP = 30 * 60 * 1000;
 
-export function mergeAd(prev, incoming, now) {
+/** Appends an engagement snapshot so growth (velocity) can be measured across sightings. */
+function withHistory(ad, engagement, now) {
+  const counts = Object.fromEntries(Object.entries(engagement || {}).filter(([, v]) => Number.isFinite(v)));
+  if (!Object.keys(counts).length) return ad.history || [];
+  const snap = { t: now, total: engagementTotal(counts), ...counts };
+  const history = [...(ad.history || [])];
+  const last = history[history.length - 1];
+  if (last && now - last.t < HISTORY_MIN_GAP) history[history.length - 1] = { ...snap, t: last.t < now ? now : last.t };
+  else history.push(snap);
+  return history.slice(-HISTORY_MAX);
+}
+
+export function mergeAd(prev, incoming, now, { countSighting = true } = {}) {
   const out = { ...prev };
   for (const [key, value] of Object.entries(incoming)) {
     if (USER_FIELDS.has(key) || isEmpty(value)) continue;
@@ -59,8 +75,15 @@ export function mergeAd(prev, incoming, now) {
       out[key] = value;
     }
   }
+  if (incoming.extra?.engagement) {
+    // Counters only grow; keep the max so a half-rendered read can't lower them.
+    const merged = { ...(prev.extra?.engagement || {}) };
+    for (const [k, v] of Object.entries(incoming.extra.engagement)) if (Number.isFinite(v)) merged[k] = Math.max(v, merged[k] || 0);
+    out.extra = { ...out.extra, engagement: merged };
+    out.history = withHistory(prev, merged, now);
+  }
   out.lastSeen = now;
-  out.seenCount = (prev.seenCount || 1) + 1;
+  if (countSighting) out.seenCount = (prev.seenCount || 1) + 1;
   return out;
 }
 
@@ -72,6 +95,7 @@ export function newAd(incoming, now) {
     mediaUrls: [],
     extra: {},
     ...incoming,
+    history: withHistory({}, incoming.extra?.engagement, now),
     firstSeen: incoming.firstSeen || now,
     lastSeen: now,
     seenCount: 1,
@@ -79,14 +103,14 @@ export function newAd(incoming, now) {
 }
 
 /** Insert or merge a captured ad in one transaction. Resolves { ad, isNew }. */
-export async function upsertAd(incoming, now = Date.now()) {
+export async function upsertAd(incoming, now = Date.now(), opts = {}) {
   const db = await openDb();
   const t = db.transaction('ads', 'readwrite');
   const s = t.objectStore('ads');
   let result;
   s.get(incoming.id).onsuccess = (e) => {
     const prev = e.target.result;
-    const ad = prev ? mergeAd(prev, incoming, now) : newAd(incoming, now);
+    const ad = prev ? mergeAd(prev, incoming, now, opts) : newAd(incoming, now);
     result = { ad, isNew: !prev };
     s.put(ad);
   };

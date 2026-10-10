@@ -32,7 +32,19 @@
         postUrl: statusLink ? statusLink.href.split('?')[0] : '',
         ...A.collectMedia(tweet, 150),
         extra: {
-          engagement: A.engagement(tweet),
+          engagement: (() => {
+            // e.g. "12 replies, 34 reposts, 567 likes, 8 bookmarks, 15022 views"
+            const bar = tweet.querySelector('[role="group"][aria-label]')?.getAttribute('aria-label') || '';
+            const pick = (re) => A.parseCount(bar.match(re)?.[1]);
+            const viewsLink = tweet.querySelector('a[href$="/analytics"]')?.getAttribute('aria-label') || '';
+            return A.engagement(tweet, {
+              comments: pick(/(\d[\d.,]*[KMB]?) repl/i),
+              shares: pick(/(\d[\d.,]*[KMB]?) (?:repost|retweet)/i),
+              likes: pick(/(\d[\d.,]*[KMB]?) like/i),
+              bookmarks: pick(/(\d[\d.,]*[KMB]?) bookmark/i),
+              views: pick(/(\d[\d.,]*[KMB]?) view/i) ?? A.parseCount(viewsLink.match(/(\d[\d.,]*[KMB]?) view/i)?.[1]),
+            });
+          })(),
           cardDomain: card ? A.lines(card).find((l) => /^(From )?[a-z0-9.-]+\.[a-z]{2,}$/i.test(l))?.replace(/^From /, '') || '' : '',
           placement: 'timeline',
         },

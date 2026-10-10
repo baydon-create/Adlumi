@@ -1,6 +1,8 @@
 import * as db from '../src/lib/db.js';
 import { PLATFORMS, getSettings, saveSettings } from '../src/lib/settings.js';
 import { analyzeLanding } from './analyze.js';
+import * as E from '../src/lib/estimates.js';
+import { renderMarket } from './insights.js';
 
 const DAY = 86400000;
 const PAGE = 60;
@@ -26,12 +28,28 @@ const setChildren = (node, ...children) => node.replaceChildren(...children.flat
 const fmtDate = (ts) => (ts ? new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
 const safeUrl = (u) => (/^https?:\/\//i.test(u || '') ? u : null);
 
-function runningDays(ad) {
-  if (ad.startedRunning) {
-    const end = ad.active === false ? ad.lastSeen : Date.now();
-    return Math.max(1, Math.round((end - Date.parse(ad.startedRunning)) / DAY));
-  }
-  return Math.max(1, Math.round((ad.lastSeen - ad.firstSeen) / DAY) + 1);
+const runningDays = (ad) => E.runningDays(ad);
+
+const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+const money = (v) => (v == null || !Number.isFinite(v) ? '—' : `$${v < 10 ? v.toFixed(2) : compact.format(v)}`);
+const num = (v) => (v == null || !Number.isFinite(v) ? '—' : v < 10 ? (Math.round(v * 10) / 10).toString() : compact.format(Math.round(v)));
+const pct = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(d)}%`);
+
+// ---- estimates (cached per ad version + settings version)
+let SETTINGS = {};
+let settingsVersion = 0;
+const estCache = new Map();
+function cached(kind, ad, fn) {
+  const key = `${kind}|${ad.id}|${ad.lastSeen}|${ad.extra?.landing?.analyzedAt || ''}|${ad.extra?.industry || ''}|${settingsVersion}`;
+  if (!estCache.has(key)) estCache.set(key, fn());
+  return estCache.get(key);
+}
+const est = (ad) => cached('e', ad, () => E.estimate(ad, SETTINGS));
+const scoreOf = (ad) => cached('s', ad, () => E.winningScore(ad));
+async function loadSettings() {
+  SETTINGS = await getSettings();
+  settingsVersion++;
+  estCache.clear();
 }
 
 function runningLabel(ad) {
@@ -64,6 +82,8 @@ function readFilters() {
     minDays: Number($('#f-days').value) || 0,
     minSeen: Number($('#f-seen').value) || 0,
     tag: $('#f-tag').value.trim().toLowerCase(),
+    industry: $('#f-industry').value,
+    minScore: Number($('#f-score').value) || 0,
     fav: $('#f-fav').checked,
     active: $('#f-active').checked,
   };
@@ -88,6 +108,8 @@ function applyFilters() {
     if (f.minSeen && (ad.seenCount || 1) < f.minSeen) return false;
     if (f.minDays && runningDays(ad) < f.minDays) return false;
     if (f.tag && !(ad.tags || []).some((t) => t.toLowerCase().includes(f.tag))) return false;
+    if (f.industry && est(ad).industry.key !== f.industry) return false;
+    if (f.minScore && scoreOf(ad).score < f.minScore) return false;
     if (terms.length) {
       const hs = haystack(ad);
       if (!terms.every((t) => hs.includes(t))) return false;
@@ -101,6 +123,9 @@ function applyFilters() {
     seenCount: (a, b) => (b.seenCount || 1) - (a.seenCount || 1),
     running: (a, b) => runningDays(b) - runningDays(a),
     advertiser: (a, b) => (a.advertiser || '').localeCompare(b.advertiser || ''),
+    score: (a, b) => scoreOf(b).score - scoreOf(a).score,
+    spend: (a, b) => (est(b).spend?.mid || 0) - (est(a).spend?.mid || 0),
+    engagement: (a, b) => (E.engagementStats(b).perDay ?? -1) - (E.engagementStats(a).perDay ?? -1),
   };
   filtered.sort(sorters[f.sort] || sorters.lastSeen);
   shown = 0;
@@ -164,7 +189,13 @@ function card(ad, { onSave } = {}) {
   }
 
   const running = runningLabel(ad);
+  const score = scoreOf(ad).score;
+  const e = est(ad);
+  const eng = E.engagementStats(ad);
   const meta = h('div', { class: 'meta' },
+    h('span', { class: `score s${score >= 70 ? 'hi' : score >= 45 ? 'mid' : 'lo'}`, title: 'Winning score (0–100)' }, `⚡ ${score}`),
+    e.spend && h('span', { class: `pill${e.confidenceScore < 0.25 ? ' weak' : ''}`, title: `Est. spend ${money(e.spend.lo)}–${money(e.spend.hi)} · ${e.confidence} confidence` }, `~${money(e.spend.mid)} spent`),
+    eng.hasData && h('span', { class: 'pill', title: 'Visible engagements' }, `💬 ${num(eng.total)}`),
     running && h('span', { class: `pill${running.hot ? ' hot' : ''}` }, running.text),
     !onSave && (ad.seenCount || 1) > 1 && h('span', { class: 'pill', title: 'Times you were shown this ad' }, `Seen ×${ad.seenCount}`),
     ad.cta && h('span', { class: 'pill cta' }, ad.cta),
@@ -185,6 +216,10 @@ function card(ad, { onSave } = {}) {
 }
 
 function fillFilterOptions() {
+  const indSel = $('#f-industry');
+  if (indSel.options.length <= 1) {
+    indSel.append(...Object.values(E.INDUSTRY_BY_KEY).map((i) => h('option', { value: i.key }, i.label)));
+  }
   const platformSel = $('#f-platform');
   const present = new Set(ADS.map((a) => a.platform));
   platformSel.replaceChildren(h('option', { value: '' }, 'All platforms'),
@@ -216,7 +251,6 @@ async function openDrawer(id) {
 
   const fact = (label, value) => (value || value === 0 ? [h('dt', {}, label), h('dd', {}, value)] : []);
   const link = (u, text) => (safeUrl(u) ? h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, text || u) : null);
-  const eng = ad.extra?.engagement && Object.entries(ad.extra.engagement).map(([k, v]) => `${v} ${k}`).join(' · ');
 
   const analysisBox = h('div', { class: 'analysis', hidden: !ad.extra?.landing });
   if (ad.extra?.landing) renderAnalysis(analysisBox, ad.extra.landing);
@@ -230,7 +264,8 @@ async function openDrawer(id) {
     try {
       ad.extra = { ...(ad.extra || {}), landing: await analyzeLanding(ad.landingUrl) };
       await save();
-      renderAnalysis(analysisBox, ad.extra.landing);
+      openDrawer(ad.id); // landing prices feed the order-value estimate
+      return;
     } catch (err) {
       analysisBox.replaceChildren(`Could not analyze: ${err.message}`);
     }
@@ -256,6 +291,12 @@ async function openDrawer(id) {
     save();
   });
 
+  const onIndustry = async (key) => {
+    ad.extra = { ...(ad.extra || {}), industry: key || undefined };
+    await save();
+    openDrawer(ad.id);
+  };
+
   setChildren(drawer,
     h('header', {},
       h('span', { class: 'pill', style: { background: platform.color, color: '#fff' } }, platform.label),
@@ -265,6 +306,11 @@ async function openDrawer(id) {
     urls.length ? gallery : null,
     ad.headline && h('h3', { style: { textTransform: 'none', fontSize: '15px', color: 'var(--text)' } }, ad.headline),
     ad.text && h('div', { class: 'adtext' }, ad.text),
+    performanceSection(ad, onIndustry),
+    engagementSection(ad),
+    audienceSection(ad),
+    messagingSection(ad),
+    h('h3', { class: 'sec' }, 'Details'),
     h('dl', { class: 'facts' },
       fact('Advertiser', link(ad.advertiserUrl, ad.advertiser) || ad.advertiser),
       fact('Call to action', ad.cta),
@@ -276,7 +322,6 @@ async function openDrawer(id) {
       fact('Status', ad.active === true ? 'Active' : ad.active === false ? 'Inactive' : null),
       fact('Ad variations', ad.extra?.adsUsingCreative),
       fact('Reach (EU)', ad.extra?.euReach?.toLocaleString?.()),
-      fact('Engagement', eng),
       fact('First seen', fmtDate(ad.firstSeen)),
       fact('Last seen', fmtDate(ad.lastSeen)),
       fact('Times seen', ad.seenCount),
@@ -308,6 +353,129 @@ async function openDrawer(id) {
   );
   drawer.querySelectorAll('a.ghost').forEach((a) => (a.style.textDecoration = 'none'));
   drawer.hidden = false;
+  $('#drawer-backdrop').hidden = false;
+}
+
+function rangeRow(label, r, fmt, hint) {
+  return h('tr', { title: hint || '' },
+    h('th', {}, label),
+    h('td', { class: 'num' }, r ? fmt(r.lo) : '—'),
+    h('td', { class: 'num likely' }, r ? fmt(r.mid) : '—'),
+    h('td', { class: 'num' }, r ? fmt(r.hi) : '—'));
+}
+
+function performanceSection(ad, onIndustry) {
+  const e = est(ad);
+  const s = scoreOf(ad);
+  const industrySel = h('select', { title: 'Correct the industry to use the right benchmarks' },
+    ...Object.values(E.INDUSTRY_BY_KEY).map((i) => h('option', { value: i.key }, i.label)));
+  industrySel.value = e.industry.key;
+  industrySel.addEventListener('change', () => onIndustry(industrySel.value));
+  const goal = e.goal;
+  const tier = (v) => (v >= 70 ? 'hi' : v >= 45 ? 'mid' : 'lo');
+  return h('section', { class: 'perf' },
+    h('h3', { class: 'sec' }, 'Performance estimate'),
+    h('div', { class: 'perf-head' },
+      h('div', { class: `ring s${tier(s.score)}`, style: { '--p': s.score } }, h('b', {}, s.score)),
+      h('div', { class: 'factors' },
+        h('b', {}, 'Winning score'),
+        ...s.factors.map((f) => h('div', { class: 'factor', title: `${f.label}: ${f.detail} (weight ${f.weight})` },
+          h('span', {}, f.label), h('i', {}, h('u', { style: { width: `${f.value * 100}%` } })), h('em', {}, f.detail))))),
+    h('div', { class: 'perf-meta' },
+      h('span', { class: `conf c-${e.confidence.toLowerCase().replace(' ', '-')}` }, `${e.confidence} confidence`),
+      h('span', { class: 'pill' }, `Signal: ${e.method}`),
+      h('span', { class: 'pill' }, `Market: ${e.country}`),
+      h('label', { class: 'pill ind' }, 'Industry ', industrySel)),
+    h('table', { class: 'est' },
+      h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'num' }, 'Low'), h('th', { class: 'num' }, 'Likely'), h('th', { class: 'num' }, 'High'))),
+      h('tbody', {},
+        rangeRow('Impressions', e.impressions, num),
+        rangeRow('Spend to date', e.spend, money),
+        rangeRow('Daily spend', e.dailySpend, money, `Spend to date ÷ ${e.days} days`),
+        rangeRow('CPM', e.cpm, money),
+        rangeRow('CTR', e.ctr, (v) => pct(v, 2)),
+        rangeRow('Clicks', e.clicks, num),
+        rangeRow('CPC', e.cpc, money),
+        rangeRow(`Conv. rate (${goal})`, e.cvr, (v) => pct(v, 1)),
+        rangeRow(`${goal[0].toUpperCase()}${goal.slice(1)}s`, e.conversions, num),
+        rangeRow(`Cost per ${goal}`, e.cpa, money),
+        e.aov && rangeRow('Order value', e.aov, money),
+        e.revenue && rangeRow('Revenue', e.revenue, money),
+        e.roas && rangeRow(e.roas.survivalAdjusted ? 'ROAS (survival-adjusted)' : 'ROAS', e.roas, (v) => `${v.toFixed(2)}×`))),
+    h('details', { class: 'basis' }, h('summary', {}, 'How this was estimated'),
+      h('ul', {}, e.basis.map((b) => h('li', {}, b))),
+      h('p', { class: 'sub' }, 'Ranges are ~90% intervals. To sharpen them: correct the industry, set your market and benchmarks in Settings, analyze the landing page (real prices), or save the ad via Meta Ad Search (EU reach).')));
+}
+
+function sparkline(points, w = 220, hgt = 44) {
+  if (points.length < 2) return null;
+  const t0 = points[0].t;
+  const t1 = points[points.length - 1].t;
+  const vmin = Math.min(...points.map((p) => p.total));
+  const vmax = Math.max(...points.map((p) => p.total), vmin + 1);
+  const xy = points.map((p) => [((p.t - t0) / (t1 - t0 || 1)) * (w - 4) + 2, hgt - 2 - ((p.total - vmin) / (vmax - vmin)) * (hgt - 4)]);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${w} ${hgt}`);
+  svg.setAttribute('class', 'spark');
+  const line = document.createElementNS(svg.namespaceURI, 'polyline');
+  line.setAttribute('points', xy.map((p) => p.join(',')).join(' '));
+  svg.append(line);
+  return svg;
+}
+
+function engagementSection(ad) {
+  const s = E.engagementStats(ad);
+  if (!s.hasData && s.views == null) return null;
+  const e = ad.extra?.engagement || {};
+  const stat = (label, v, fmt = num) => (v == null ? null : h('div', { class: 'kpi' }, h('b', {}, fmt(v)), h('span', {}, label)));
+  return h('section', {},
+    h('h3', { class: 'sec' }, 'Engagement'),
+    h('div', { class: 'kpis mini' },
+      stat('Reactions', e.reactions), stat('Likes', e.reactions == null ? e.likes : null), stat('Comments', e.comments),
+      stat('Shares', e.shares), stat('Views', e.views), stat('Bookmarks', e.bookmarks),
+      stat('Per day (avg)', s.perDay), stat('Per day (measured)', s.velocity),
+      stat('Comment share', s.commentShare, (v) => pct(v, 0)), stat('Share rate', s.shareShare, (v) => pct(v, 0))),
+    s.history.length >= 2 && h('div', { class: 'spark-wrap' }, sparkline(s.history), h('span', { class: 'sub' }, `${s.history.length} snapshots since ${fmtDate(s.history[0].t)}`)),
+    s.commentShare > 0.3 && h('p', { class: 'sub' }, 'A high comment share often signals purchase questions, objections, or controversy. Read the comments for objections you can address in your own ads.'),
+    s.shareShare > 0.15 && h('p', { class: 'sub' }, 'A high share rate means people pass this one on. It is a strong sign the angle resonates.'));
+}
+
+function audienceSection(ad) {
+  const a = ad.extra?.audience;
+  const t = ad.extra?.targeting;
+  if (!a && !t) return null;
+  const sum = (o) => Object.values(o || {}).reduce((x, y) => x + y, 0) || 1;
+  const list = (o) => Object.entries(o || {}).sort((x, y) => y[1] - x[1]);
+  return h('section', {},
+    h('h3', { class: 'sec' }, 'Audience (reported by Meta)'),
+    t && h('div', { class: 'tags' },
+      t.ages && h('span', { class: 'pill' }, `Targeted ages: ${t.ages}`),
+      t.gender && h('span', { class: 'pill' }, `Gender: ${t.gender}`),
+      ...(t.locations || []).slice(0, 8).map((l) => h('span', { class: 'pill' }, `📍 ${l}`)),
+      t.payer && h('span', { class: 'pill' }, `Paid by: ${t.payer}`)),
+    a?.ages && h('div', { class: 'bars' }, list(a.ages).map(([k, v]) =>
+      h('div', { class: 'bar' }, h('div', { class: 'label' }, h('i', { style: { width: `${(v / sum(a.ages)) * 100}%` } }), h('span', {}, k)), h('b', {}, pct(v / sum(a.ages), 0))))),
+    a?.genders && h('p', { class: 'sub' }, list(a.genders).map(([k, v]) => `${k} ${pct(v / sum(a.genders), 0)}`).join(' · ')),
+    a?.countries && h('p', { class: 'sub' }, `Top countries: ${list(a.countries).slice(0, 6).map(([k, v]) => `${k} (${num(v)})`).join(', ')}`));
+}
+
+function messagingSection(ad) {
+  const angles = E.anglesOf(ad);
+  const offers = E.offersOf(ad);
+  const hook = E.hookOf(ad);
+  if (!angles.length && !offers.length && !hook) return null;
+  return h('section', {},
+    h('h3', { class: 'sec' }, 'Messaging breakdown'),
+    hook && h('p', {}, h('b', {}, 'Hook: '), hook),
+    angles.length && h('div', { class: 'tags' }, angles.map((a) => h('span', { class: 'pill cta' }, a))),
+    offers.length && h('div', { class: 'tags', style: { marginTop: '6px' } }, offers.map((o) => h('span', { class: 'pill hot' }, o))));
+}
+
+/** Generic drawer for other modules (competitor deep dive). */
+function showDrawer(...children) {
+  setChildren($('#drawer'), ...children);
+  $('#drawer').scrollTop = 0;
+  $('#drawer').hidden = false;
   $('#drawer-backdrop').hidden = false;
 }
 
@@ -349,9 +517,39 @@ async function copyText(btn, text) {
 const API_FIELDS = [
   'id', 'page_id', 'page_name', 'ad_creation_time', 'ad_delivery_start_time', 'ad_delivery_stop_time',
   'ad_creative_bodies', 'ad_creative_link_titles', 'ad_creative_link_descriptions', 'ad_creative_link_captions',
-  'ad_snapshot_url', 'publisher_platforms', 'languages', 'eu_total_reach',
+  'ad_snapshot_url', 'publisher_platforms', 'languages',
 ].join(',');
+// EU transparency + political disclosure fields; not available to every token/ad type.
+const API_EXTRA_FIELDS = [
+  'eu_total_reach', 'target_ages', 'target_gender', 'target_locations', 'age_country_gender_reach_breakdown',
+  'beneficiary_payers', 'spend', 'impressions', 'currency', 'demographic_distribution', 'delivery_by_region', 'estimated_audience_size',
+].join(',');
+
+/** Collapses Meta's per-country age/gender breakdowns into compact totals. */
+function compactAudience(a) {
+  const ages = {};
+  const genders = {};
+  const countries = {};
+  for (const c of a.age_country_gender_reach_breakdown || []) {
+    for (const b of c.age_gender_breakdowns || []) {
+      const total = (b.male || 0) + (b.female || 0) + (b.unknown || 0);
+      ages[b.age_range] = (ages[b.age_range] || 0) + total;
+      genders.male = (genders.male || 0) + (b.male || 0);
+      genders.female = (genders.female || 0) + (b.female || 0);
+      if (b.unknown) genders.unknown = (genders.unknown || 0) + b.unknown;
+      countries[c.country] = (countries[c.country] || 0) + total;
+    }
+  }
+  for (const d of a.demographic_distribution || []) {
+    const share = parseFloat(d.percentage) || 0;
+    ages[d.age] = (ages[d.age] || 0) + share;
+    genders[d.gender] = (genders[d.gender] || 0) + share;
+  }
+  for (const r of a.delivery_by_region || []) countries[r.region] = (countries[r.region] || 0) + (parseFloat(r.percentage) || 0);
+  return Object.keys(ages).length || Object.keys(countries).length ? { ages, genders, countries } : undefined;
+}
 let apiNext = null;
+let COUNTRIES_SEARCHED = [];
 
 function fromApi(a) {
   const caption = a.ad_creative_link_captions?.[0] || '';
@@ -379,6 +577,20 @@ function fromApi(a) {
       languages: a.languages,
       euReach: a.eu_total_reach,
       description: a.ad_creative_link_descriptions?.[0],
+      countries: COUNTRIES_SEARCHED,
+      spend: a.spend,
+      impressions: a.impressions,
+      currency: a.currency,
+      audienceSize: a.estimated_audience_size,
+      audience: compactAudience(a),
+      targeting: a.target_ages || a.target_gender || a.target_locations || a.beneficiary_payers
+        ? {
+            ages: Array.isArray(a.target_ages) ? a.target_ages.join('–') : a.target_ages,
+            gender: a.target_gender,
+            locations: (a.target_locations || []).map((l) => l.name).filter(Boolean),
+            payer: a.beneficiary_payers?.[0]?.payer,
+          }
+        : undefined,
     },
   };
 }
@@ -393,12 +605,13 @@ async function apiSearch(more = false) {
   let url = apiNext;
   if (!more) {
     const countries = $('#api-country').value.toUpperCase().split(/[\s,]+/).filter(Boolean);
+    COUNTRIES_SEARCHED = countries.length ? countries : ['DE'];
     const p = new URLSearchParams({
       search_terms: $('#api-q').value.trim(),
       ad_reached_countries: JSON.stringify(countries.length ? countries : ['DE']),
       ad_active_status: $('#api-status').value,
       ad_type: $('#api-type').value,
-      fields: API_FIELDS,
+      fields: `${API_FIELDS},${API_EXTRA_FIELDS}`,
       limit: '30',
       access_token: settings.graphToken,
     });
@@ -408,7 +621,13 @@ async function apiSearch(more = false) {
   }
   status.textContent = 'Searching…';
   try {
-    const json = await (await fetch(url)).json();
+    let json = await (await fetch(url)).json();
+    if (json.error && !more && /field|permission/i.test(json.error.message)) {
+      // Some tokens/ad types reject the transparency fields; retry with the core set.
+      const retry = new URL(url);
+      retry.searchParams.set('fields', API_FIELDS);
+      json = await (await fetch(retry)).json();
+    }
     if (json.error) throw new Error(json.error.message);
     const ads = (json.data || []).map(fromApi);
     const savedIds = new Set((await Promise.all(ads.map((a) => db.getAd(a.id)))).filter(Boolean).map((a) => a.id));
@@ -434,80 +653,12 @@ async function apiSearch(more = false) {
 }
 
 // ======================= insights =======================
-function countBy(list, key) {
-  const m = new Map();
-  for (const item of list) {
-    const k = typeof key === 'function' ? key(item) : item[key];
-    if (k) m.set(k, (m.get(k) || 0) + 1);
-  }
-  return [...m.entries()].sort((a, b) => b[1] - a[1]);
-}
-
-function bars(target, entries, { limit = 10, label = (k) => k, onClick } = {}) {
-  const top = entries.slice(0, limit);
-  const max = Math.max(1, ...top.map(([, v]) => v));
-  target.replaceChildren(
-    ...(top.length
-      ? top.map(([k, v]) =>
-          h('div', { class: `bar${onClick ? ' link' : ''}`, onclick: onClick && (() => onClick(k)), title: label(k) },
-            h('div', { class: 'label' }, h('i', { style: { width: `${(v / max) * 100}%` } }), h('span', {}, label(k))),
-            h('b', {}, v.toLocaleString())))
-      : [h('div', { class: 'sub' }, 'No data yet')])
-  );
-}
-
-function searchLibrary(q) {
-  $('#f-q').value = q;
-  show('library');
-  applyFilters();
-}
-
+const marketCtx = {
+  h, setChildren, openDrawer, showDrawer, closeDrawer, est, scoreOf, fmtDate, money, num, pct, download,
+  toCsvRows: (rows) => rows.map((r) => r.map(csvCell).join(',')).join('\n'),
+};
 function renderInsights() {
-  const now = Date.now();
-  const week = ADS.filter((a) => a.firstSeen > now - 7 * DAY).length;
-  const advertisers = new Set(ADS.map((a) => a.advertiser).filter(Boolean)).size;
-  const long = ADS.filter((a) => runningDays(a) >= 30).length;
-  $('#kpis').replaceChildren(
-    ...[
-      [ADS.length, 'Ads in library'],
-      [week, 'New this week'],
-      [advertisers, 'Advertisers'],
-      [long, 'Running 30+ days'],
-      [ADS.filter((a) => a.favorite).length, 'Favorites'],
-    ].map(([v, l]) => h('div', { class: 'kpi' }, h('b', {}, v.toLocaleString()), h('span', {}, l)))
-  );
-
-  const days = Array.from({ length: 30 }, (_, i) => {
-    const start = new Date(now - (29 - i) * DAY);
-    start.setHours(0, 0, 0, 0);
-    return { start: start.getTime(), n: 0 };
-  });
-  for (const ad of ADS) {
-    const idx = days.findIndex((d) => ad.firstSeen >= d.start && ad.firstSeen < d.start + DAY);
-    if (idx >= 0) days[idx].n++;
-  }
-  const maxDay = Math.max(1, ...days.map((d) => d.n));
-  $('#ch-daily').replaceChildren(
-    ...days.map((d) => h('div', { style: { height: `${(d.n / maxDay) * 100}%` }, title: `${fmtDate(d.start)}: ${d.n} ads` }))
-  );
-
-  bars($('#ch-adv'), countBy(ADS, 'advertiser'), { onClick: searchLibrary });
-  bars($('#ch-dom'), countBy(ADS, 'landingDomain'), { onClick: searchLibrary });
-  bars($('#ch-plat'), countBy(ADS, 'platform'), {
-    label: (k) => PLATFORMS[k]?.label || k,
-    onClick: (k) => (($('#f-platform').value = k), show('library'), applyFilters()),
-  });
-  bars($('#ch-cta'), countBy(ADS, 'cta'));
-  bars($('#ch-media'), countBy(ADS, 'mediaType'));
-  bars($('#ch-kw'), countBy(ADS, (a) => a.extra?.keyword), { onClick: searchLibrary });
-  const longest = [...ADS].sort((a, b) => runningDays(b) - runningDays(a)).slice(0, 10);
-  bars($('#ch-long'), longest.map((a) => [a.id, runningDays(a)]), {
-    label: (id) => {
-      const a = ADS.find((x) => x.id === id);
-      return `${a.advertiser || a.landingDomain || '?'} — ${(a.headline || a.text || '').slice(0, 60)}`;
-    },
-    onClick: openDrawer,
-  });
+  renderMarket($('#market'), marketCtx, ADS);
 }
 
 // ======================= settings & data =======================
@@ -518,6 +669,10 @@ async function renderSettings() {
   $('#s-thumbs').checked = s.thumbnails;
   $('#s-token').value = s.graphToken;
   $('#s-version').value = s.graphVersion;
+  $('#s-country').value = s.marketCountry || '';
+  $('#s-cpm').value = s.cpmOverride || '';
+  $('#s-cvr').value = s.cvrOverride || '';
+  $('#s-aov').value = s.aovOverride || '';
   $('#s-platforms').replaceChildren(
     ...Object.entries(PLATFORMS).map(([k, p]) => {
       const input = h('input', { type: 'checkbox' });
@@ -537,6 +692,15 @@ function bindSettings() {
   $('#s-thumbs').addEventListener('change', (e) => saveSettings({ thumbnails: e.target.checked }));
   $('#s-token').addEventListener('change', (e) => saveSettings({ graphToken: e.target.value.trim() }));
   $('#s-version').addEventListener('change', (e) => saveSettings({ graphVersion: e.target.value.trim() || 'v23.0' }));
+  const model = async (patch) => {
+    await saveSettings(patch);
+    await loadSettings();
+    applyFilters();
+  };
+  $('#s-country').addEventListener('change', (e) => model({ marketCountry: e.target.value.trim().toUpperCase() || 'US' }));
+  $('#s-cpm').addEventListener('change', (e) => model({ cpmOverride: e.target.value }));
+  $('#s-cvr').addEventListener('change', (e) => model({ cvrOverride: e.target.value }));
+  $('#s-aov').addEventListener('change', (e) => model({ aovOverride: e.target.value }));
 
   $('#export-json').addEventListener('click', () => download('adspy-ads.json', JSON.stringify(ADS, null, 2), 'application/json'));
   $('#export-csv').addEventListener('click', () => download('adspy-ads.csv', toCsv(ADS), 'text/csv'));
@@ -564,20 +728,35 @@ function bindSettings() {
 }
 
 const CSV_COLUMNS = ['id', 'platform', 'advertiser', 'headline', 'text', 'cta', 'landingUrl', 'landingDomain', 'mediaType',
-  'postUrl', 'startedRunning', 'active', 'firstSeen', 'lastSeen', 'seenCount', 'favorite', 'tags', 'notes', 'keyword', 'mediaUrl'];
+  'postUrl', 'startedRunning', 'active', 'firstSeen', 'lastSeen', 'seenCount', 'favorite', 'tags', 'notes', 'keyword', 'mediaUrl',
+  'winningScore', 'industry', 'daysRunning', 'reactions', 'comments', 'shares', 'views', 'estImpressions', 'estSpendLow', 'estSpend',
+  'estSpendHigh', 'estCpm', 'estCpc', 'estCpa', 'estRoas', 'estConfidence', 'estMethod', 'angles', 'offers'];
+
+function csvCell(v) {
+  const s = v == null ? '' : String(v);
+  // Leading =,+,-,@ would be evaluated as formulas by spreadsheet apps
+  const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
+  return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
 
 function toCsv(list) {
-  const cell = (v) => {
-    const s = v == null ? '' : String(v);
-    // Leading =,+,-,@ would be evaluated as formulas by spreadsheet apps
-    const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
-    return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-  };
+  const cell = csvCell;
   const rows = list.map((a) => CSV_COLUMNS.map((c) => {
     if (c === 'firstSeen' || c === 'lastSeen') return cell(a[c] ? new Date(a[c]).toISOString() : '');
     if (c === 'tags') return cell((a.tags || []).join('; '));
     if (c === 'keyword') return cell(a.extra?.keyword);
     if (c === 'mediaUrl') return cell(a.mediaUrls?.[0]);
+    const e = est(a);
+    const r = (x) => (x ? Math.round(x.mid * 100) / 100 : '');
+    const derived = {
+      winningScore: scoreOf(a).score, industry: e.industry.label, daysRunning: e.days,
+      reactions: a.extra?.engagement?.reactions ?? a.extra?.engagement?.likes, comments: a.extra?.engagement?.comments,
+      shares: a.extra?.engagement?.shares, views: a.extra?.engagement?.views,
+      estImpressions: e.impressions ? Math.round(e.impressions.mid) : '', estSpendLow: e.spend ? Math.round(e.spend.lo) : '',
+      estSpend: r(e.spend), estSpendHigh: e.spend ? Math.round(e.spend.hi) : '', estCpm: r(e.cpm), estCpc: r(e.cpc), estCpa: r(e.cpa),
+      estRoas: r(e.roas), estConfidence: e.confidence, estMethod: e.method, angles: E.anglesOf(a).join('; '), offers: E.offersOf(a).join('; '),
+    };
+    if (c in derived) return cell(derived[c]);
     return cell(a[c]);
   }).join(','));
   return [CSV_COLUMNS.join(','), ...rows].join('\n');
@@ -621,7 +800,7 @@ async function boot() {
     clearTimeout(debounce);
     debounce = setTimeout(applyFilters, 150);
   });
-  document.querySelectorAll('.filters select, .more-grid input').forEach((i) => i.addEventListener('change', applyFilters));
+  document.querySelectorAll('#view-library .filters select, .more-grid input, .more-grid select').forEach((i) => i.addEventListener('change', applyFilters));
   $('#more').addEventListener('click', renderMore);
   $('#welcome-close').addEventListener('click', () => ($('#welcome').hidden = true));
   $('#drawer-backdrop').addEventListener('click', closeDrawer);
@@ -646,6 +825,7 @@ async function boot() {
     }, 1500);
   });
 
+  await loadSettings();
   await refresh();
   routeHash();
   addEventListener('hashchange', routeHash);

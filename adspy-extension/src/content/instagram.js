@@ -33,7 +33,17 @@
           return a ? a.href.split('?')[0] : '';
         })(),
         ...A.collectMedia(post, 200),
-        extra: { kind: label(post), engagement: A.engagement(post), placement: 'feed' },
+        extra: {
+          kind: label(post),
+          engagement: A.engagement(post, {
+            // "Liked by alex and 1,234 others" = 1,235 likes
+            likes: (() => {
+              const m = (post.innerText || '').match(/Liked by .+? and (\d[\d.,]*\s?[KM]?) others/i);
+              return m ? A.parseCount(m[1]) + 1 : undefined;
+            })(),
+          }),
+          placement: 'feed',
+        },
       };
     },
   });

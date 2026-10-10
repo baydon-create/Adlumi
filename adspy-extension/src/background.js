@@ -11,8 +11,8 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg?.type === 'ad:capture') {
-    handleCapture(msg.ad, sender.tab)
+  if (msg?.type === 'ad:capture' || msg?.type === 'ad:refresh') {
+    handleCapture(msg.ad, sender.tab, msg.type === 'ad:refresh')
       .then(sendResponse)
       .catch((err) => sendResponse({ error: String(err) }));
     return true; // async response
@@ -26,10 +26,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return false;
 });
 
-async function handleCapture(ad, tab) {
+async function handleCapture(ad, tab, isRefresh = false) {
   if (!ad?.id || !ad.platform) return { error: 'invalid ad' };
-  const { ad: saved, isNew } = await upsertAd(sanitize(ad));
-  if (tab?.id != null) await bumpTabCount(tab.id);
+  const { ad: saved, isNew } = await upsertAd(sanitize(ad), Date.now(), { countSighting: !isRefresh });
+  if (tab?.id != null && !isRefresh) await bumpTabCount(tab.id);
   chrome.runtime.sendMessage({ type: 'ads:changed', isNew }).catch(() => {}); // no dashboard open
 
   const settings = await getSettings();

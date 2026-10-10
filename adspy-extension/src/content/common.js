@@ -126,18 +126,54 @@
     return { mediaUrls, mediaType };
   }
 
-  /** Pulls "1.2K comments" / "300 shares" style counters from visible text. */
-  function engagement(root) {
-    const t = root.innerText || '';
-    const grab = (re) => t.match(re)?.[1] || '';
-    const out = {
-      reactions: grab(/All reactions:\s*\n?\s*([\d.,]+[KkMm]?)/),
-      comments: grab(/([\d.,]+[KkMm]?)\s+comments?/i),
-      shares: grab(/([\d.,]+[KkMm]?)\s+shares?/i),
-      views: grab(/([\d.,]+[KkMm]?)\s+views?/i),
-      likes: grab(/([\d.,]+[KkMm]?)\s+likes?/i),
-    };
-    return Object.fromEntries(Object.entries(out).filter(([, v]) => v));
+  /** "1.2K" -> 1200, "3,456" -> 3456, "1,2 M" -> 1200000 (mirrors src/lib/estimates.js). */
+  function parseCount(v) {
+    if (v == null) return null;
+    const m = String(v).replace(/\s/g, '').match(/^(\d[\d.,]*)([KkMmBb])?/);
+    if (!m) return null;
+    let num = m[1];
+    if (/^\d{1,3}(,\d{3})+$/.test(num)) num = num.replace(/,/g, '');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(num) && !m[2]) num = num.replace(/\./g, '');
+    else num = num.replace(',', '.');
+    const n = parseFloat(num);
+    return Number.isFinite(n) ? Math.round(n * ({ k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1)) : null;
+  }
+
+  const NUM = String.raw`(\d[\d.,]*\s?[KkMmBb]?)`;
+  const COUNT_PATTERNS = {
+    reactions: [String.raw`All reactions:?\s*${NUM}`, String.raw`${NUM}\s+reactions?\b`],
+    comments: [String.raw`${NUM}\s+comments?\b`, String.raw`View all ${NUM} comments`, String.raw`${NUM}\s+replies\b`],
+    shares: [String.raw`${NUM}\s+(?:shares?|reposts?|retweets?)\b`],
+    views: [String.raw`${NUM}\s+(?:views?|plays?)\b`],
+    likes: [String.raw`${NUM}\s+likes?\b`],
+  };
+
+  /**
+   * Numeric engagement counters from visible text and aria-labels.
+   * `overrides` (platform-specific readings) win over the generic text patterns.
+   */
+  function engagement(root, overrides = {}) {
+    const sources = [root.innerText || ''];
+    root.querySelectorAll('[aria-label]').forEach((n) => {
+      const label = n.getAttribute('aria-label');
+      if (label && /\d/.test(label) && label.length < 200) sources.push(label);
+    });
+    const text = sources.join('\n');
+    const out = {};
+    for (const [key, patterns] of Object.entries(COUNT_PATTERNS)) {
+      for (const p of patterns) {
+        const v = parseCount(text.match(new RegExp(p, 'i'))?.[1]);
+        if (v != null) {
+          out[key] = v;
+          break;
+        }
+      }
+    }
+    for (const [k, v] of Object.entries(overrides)) {
+      const n = typeof v === 'number' ? v : parseCount(v);
+      if (Number.isFinite(n)) out[k] = n;
+    }
+    return out;
   }
 
   // cyrb53: fast, well-distributed 53-bit string hash
@@ -164,18 +200,33 @@
   }
 
   // ---------- messaging & badges ----------
-  function send(ad, el) {
+  function send(ad, el, type = 'ad:capture') {
     if (!alive) return;
     ad.id ||= makeId(ad);
     ad.landingDomain = domainOf(ad.landingUrl);
     ad.pageUrl = location.href;
     try {
-      chrome.runtime.sendMessage({ type: 'ad:capture', ad }, () => void chrome.runtime.lastError);
+      chrome.runtime.sendMessage({ type, ad }, () => void chrome.runtime.lastError);
     } catch {
       alive = false; // extension was reloaded; this page's script is orphaned
       return;
     }
-    if (el && settings.badges !== false) badge(el);
+    if (el && settings.badges !== false && type === 'ad:capture') badge(el);
+  }
+
+  // Engagement counters often render after the post, so captured ads are re-read
+  // a few times; the worker merges these without counting a new sighting.
+  const REFRESH_DELAYS = [4000, 15000, 60000];
+  function scheduleRefresh(def, el, id) {
+    for (const delay of REFRESH_DELAYS) {
+      setTimeout(() => {
+        if (!alive || !el.isConnected) return;
+        try {
+          const ad = def.extract(el);
+          if (ad) send({ platform: def.platform, source: 'feed', ...ad, id }, el, 'ad:refresh');
+        } catch {}
+      }, delay);
+    }
   }
 
   let styleInjected = false;
@@ -230,7 +281,9 @@
         }
         if (!ad || !(ad.advertiser || ad.text || ad.headline)) continue;
         el.dataset.adspy = '1';
-        send({ platform: def.platform, source: 'feed', ...ad }, el);
+        const full = { platform: def.platform, source: 'feed', ...ad };
+        send(full, el);
+        scheduleRefresh(def, el, full.id);
       }
     }
   }
@@ -253,6 +306,6 @@
 
   window.__adspy = {
     SPONSORED, settings, register, send, badge, text, lines, longest, cleanUrl, decodeRedirect,
-    domainOf, isExternal, findLanding, findCta, collectMedia, engagement, hash,
+    domainOf, isExternal, findLanding, findCta, collectMedia, engagement, parseCount, hash,
   };
 })();

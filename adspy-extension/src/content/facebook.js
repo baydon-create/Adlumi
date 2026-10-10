@@ -39,6 +39,20 @@
     return '';
   }
 
+  // The reaction total sits in the post footer as a bare number ("1.2K") right before
+  // the "N comments" / "N shares" counters, next to a "See who reacted" control.
+  function reactions(post) {
+    const reactedBtn = post.querySelector('[aria-label*="who reacted" i]');
+    const near = reactedBtn && A.parseCount(A.lines(reactedBtn.parentElement).find((l) => /^\d[\d.,]*\s?[KM]?$/i.test(l)));
+    if (near != null) return near;
+    const ls = A.lines(post);
+    const idx = ls.findIndex((l) => /\d\s+(comments?|shares?)$/i.test(l));
+    for (let i = idx - 1; i >= Math.max(0, idx - 3); i--) {
+      if (/^\d[\d.,]*\s?[KM]?$/i.test(ls[i])) return A.parseCount(ls[i]);
+    }
+    return null;
+  }
+
   function extract(post) {
     const advEl = post.querySelector('h2 a, h3 a, h4 a, strong a, h2 strong, h3 strong, h4 strong, h4 span');
     const advLink = advEl?.closest('a');
@@ -58,7 +72,7 @@
       landingUrl,
       postUrl: permalink ? A.cleanUrl(permalink.href) : '',
       ...A.collectMedia(post, 180),
-      extra: { engagement: A.engagement(post), placement: 'news_feed' },
+      extra: { engagement: A.engagement(post, { reactions: reactions(post) }), placement: 'news_feed' },
     };
   }
 

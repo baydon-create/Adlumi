@@ -13,7 +13,7 @@
     <div class="brand"><img src="../icons/icon48.png" alt="" /> AdSpy Lens</div>
     <button data-view="library" class="active">🗂️ Ad Library <em id="nav-count"></em></button>
     <button data-view="search">🔎 Meta Ad Search</button>
-    <button data-view="insights">📊 Insights</button>
+    <button data-view="insights">📊 Market Intelligence</button>
     <button data-view="settings">⚙️ Settings</button>
     <div class="nav-foot">Data stays in your browser.</div>
   </aside>
@@ -39,6 +39,9 @@
         </select>
         <select id="f-cta"><option value="">Any CTA</option></select>
         <select id="f-sort">
+          <option value="score">⚡ Winning score</option>
+          <option value="spend">Est. spend</option>
+          <option value="engagement">Engagement / day</option>
           <option value="lastSeen">Recently seen</option>
           <option value="firstSeen">Newest found</option>
           <option value="oldest">Oldest found</option>
@@ -54,6 +57,8 @@
             <label>Min. days running <input id="f-days" type="number" min="0" placeholder="0" /></label>
             <label>Min. times seen <input id="f-seen" type="number" min="0" placeholder="0" /></label>
             <label>Tag <input id="f-tag" type="text" placeholder="e.g. competitor" /></label>
+            <label>Industry <select id="f-industry"><option value="">Any industry</option></select></label>
+            <label>Min. winning score <input id="f-score" type="number" min="0" max="100" placeholder="0" /></label>
             <label class="check"><input id="f-fav" type="checkbox" /> Favorites only</label>
             <label class="check"><input id="f-active" type="checkbox" /> Active only (Ad Library)</label>
           </div>
@@ -101,18 +106,9 @@
 
     <!-- ================= INSIGHTS ================= -->
     <section id="view-insights" class="view" hidden>
-      <h2>Insights</h2>
-      <div class="kpis" id="kpis"></div>
-      <div class="panels">
-        <div class="panel"><h3>Ads captured per day (last 30 days)</h3><div id="ch-daily" class="daily"></div></div>
-        <div class="panel"><h3>Top advertisers</h3><div id="ch-adv" class="bars"></div></div>
-        <div class="panel"><h3>Top landing domains</h3><div id="ch-dom" class="bars"></div></div>
-        <div class="panel"><h3>Platforms</h3><div id="ch-plat" class="bars"></div></div>
-        <div class="panel"><h3>Calls to action</h3><div id="ch-cta" class="bars"></div></div>
-        <div class="panel"><h3>Creative format</h3><div id="ch-media" class="bars"></div></div>
-        <div class="panel"><h3>Google keywords that showed ads</h3><div id="ch-kw" class="bars"></div></div>
-        <div class="panel"><h3>Longest-running ads</h3><div id="ch-long" class="bars"></div></div>
-      </div>
+      <h2>Market intelligence</h2>
+      <p class="sub">Scope the market by keyword, platform or industry, then see who dominates spend, which ads are winning, and which angles, offers, formats and hooks over-index in winners. Spend and cost figures are modelled ranges. Open any ad to see exactly how they were estimated.</p>
+      <div id="market"></div>
     </section>
 
     <!-- ================= SETTINGS ================= -->
@@ -130,6 +126,14 @@
         <p class="sub">Create a token in the <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">Graph API Explorer</a> after confirming your identity at <a href="https://www.facebook.com/ID" target="_blank" rel="noopener">facebook.com/ID</a>. The token is stored only in this browser.</p>
         <label class="row"><span>Access token</span><input type="password" id="s-token" placeholder="EAAB…" /></label>
         <label class="row"><span>Graph API version</span><input type="text" id="s-version" /></label>
+      </div>
+      <div class="panel">
+        <h3>Estimation model</h3>
+        <p class="sub">Spend, CPM, CPA and revenue for competitor ads are modelled from public signals plus benchmarks. Set your market and, if you know your niche's real numbers, override the benchmarks to sharpen every estimate.</p>
+        <label class="row"><span>Main market (ISO country, used for feed ads)</span><input type="text" id="s-country" maxlength="2" placeholder="US" /></label>
+        <label class="row"><span>CPM override (USD per 1,000 impressions)</span><input type="number" id="s-cpm" min="0" step="0.1" placeholder="auto" /></label>
+        <label class="row"><span>Conversion rate override (%)</span><input type="number" id="s-cvr" min="0" step="0.1" placeholder="auto" /></label>
+        <label class="row"><span>Average order value override (USD)</span><input type="number" id="s-aov" min="0" step="1" placeholder="auto" /></label>
       </div>
       <div class="panel">
         <h3>Data</h3>

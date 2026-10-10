@@ -43,7 +43,7 @@
           return a ? a.href.split('&')[0] : '';
         })(),
         ...A.collectMedia(el, 100),
-        extra: { placement: location.pathname.startsWith('/results') ? 'search' : location.pathname === '/watch' ? 'watch_sidebar' : 'home_feed' },
+        extra: { engagement: A.engagement(el), placement: location.pathname.startsWith('/results') ? 'search' : location.pathname === '/watch' ? 'watch_sidebar' : 'home_feed' },
       };
     },
   });

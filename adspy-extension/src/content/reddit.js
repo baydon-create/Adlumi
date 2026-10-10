@@ -18,7 +18,11 @@
         cta: A.findCta(el),
         landingUrl: A.decodeRedirect(attr('outbound-link') || attr('content-href')) || A.findLanding(el, OWN),
         ...A.collectMedia(el, 140),
-        extra: { placement: 'feed', subreddit: attr('subreddit-prefixed-name') },
+        extra: {
+          placement: 'feed',
+          subreddit: attr('subreddit-prefixed-name'),
+          engagement: A.engagement(el, { reactions: attr('score') || undefined, comments: attr('comment-count') || undefined }),
+        },
       };
     },
   });

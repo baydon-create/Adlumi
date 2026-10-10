@@ -16,6 +16,11 @@ export const DEFAULT_SETTINGS = {
   platforms: Object.fromEntries(Object.keys(PLATFORMS).map((k) => [k, true])),
   graphVersion: 'v23.0',
   graphToken: '',
+  // Estimation assumptions (blank = use built-in benchmarks)
+  marketCountry: 'US',
+  cpmOverride: '',
+  cvrOverride: '',
+  aovOverride: '',
 };
 
 export async function getSettings() {
