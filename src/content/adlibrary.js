@@ -84,7 +84,8 @@
       .adspy-lib-bar .pill{padding:3px 8px;border-radius:999px;background:#fff;border:1px solid #d8d0ff}
       .adspy-lib-bar .pill.hot{background:#ffefe0;border-color:#ffc58f;color:#8a3b00}
       .adspy-lib-bar button{margin-left:auto;cursor:pointer;border:0;border-radius:6px;padding:5px 10px;background:#6d4aff;color:#fff;font:600 12px system-ui}
-      .adspy-lib-bar button[disabled]{background:#9a8ad6;cursor:default}
+      .adspy-lib-bar button.saved{background:#e9e4ff;color:#3b2a8f}
+      #adspy-save-all[disabled]{opacity:.7;cursor:default}
       #adspy-save-all{position:fixed;right:20px;bottom:20px;z-index:2147483000;border:0;border-radius:999px;padding:12px 18px;background:#6d4aff;color:#fff;font:700 13px system-ui;box-shadow:0 6px 20px rgba(60,30,180,.35);cursor:pointer}`;
     document.documentElement.appendChild(s);
   }
@@ -93,14 +94,19 @@
     const entry = cards.get(libraryId);
     if (!entry) return;
     entry.ad = extract(entry.el, libraryId); // re-extract: media may have lazy-loaded
-    A.send(entry.ad);
+    // Re-saving an existing ad refreshes its landing page, media and status without counting a new sighting.
+    A.send(entry.ad, null, saved.has(libraryId) ? 'ad:refresh' : 'ad:capture');
     saved.add(libraryId);
-    const btn = entry.el.querySelector('.adspy-lib-bar button');
-    if (btn) {
-      btn.textContent = 'Saved ✓';
-      btn.disabled = true;
-    }
+    markSavedButton(entry.el);
     updateSaveAll();
+  }
+
+  function markSavedButton(card) {
+    const btn = card.querySelector('.adspy-lib-bar button');
+    if (!btn) return;
+    btn.textContent = 'Saved ✓ · Update';
+    btn.title = 'Already in your library. Click to refresh its landing page, media and status.';
+    btn.classList.add('saved');
   }
 
   function decorate(card, libraryId, ad) {
@@ -122,8 +128,7 @@
       bar.appendChild(pill);
     }
     const btn = document.createElement('button');
-    btn.textContent = saved.has(libraryId) ? 'Saved ✓' : 'Save to AdSpy';
-    btn.disabled = saved.has(libraryId);
+    btn.textContent = 'Save to AdSpy';
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -131,6 +136,7 @@
     });
     bar.appendChild(btn);
     card.prepend(bar);
+    if (saved.has(libraryId)) markSavedButton(card);
   }
 
   function updateSaveAll() {
@@ -154,11 +160,11 @@
         res.ids.forEach((full) => {
           const id = full.replace('fb-lib-', '');
           saved.add(id);
-          const btn = cards.get(id)?.el.querySelector('.adspy-lib-bar button');
-          if (btn) {
-            btn.textContent = 'Saved ✓';
-            btn.disabled = true;
-          }
+          const entry = cards.get(id);
+          if (!entry) return;
+          markSavedButton(entry.el);
+          // Keep saved ads current (exact landing page, fresh media, active status) while they're on screen.
+          A.send(extract(entry.el, id), null, 'ad:refresh');
         });
         updateSaveAll();
       });

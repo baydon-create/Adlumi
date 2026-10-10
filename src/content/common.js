@@ -88,13 +88,32 @@
     return !!d && !ownHosts.some((h) => d === h || d.endsWith(`.${h}`));
   };
 
-  /** First outbound destination link inside root, after unwrapping redirects. */
+  const COPY_SELECTOR = '[data-ad-preview="message"], [data-ad-comet-preview="message"], div[style*="pre-wrap"], div[style*="pre-line"]';
+
+  /**
+   * The ad's real destination. Ad copy often links the bare homepage ("order at
+   * brand.com") before the creative, so links are scored instead of taking the
+   * first one: the CTA button / creative attachment and deep URLs win, links
+   * inside the copy lose.
+   */
   function findLanding(root, ownHosts) {
-    for (const a of root.querySelectorAll('a[href]')) {
+    let best = null;
+    root.querySelectorAll('a[href]').forEach((a, i) => {
       const dest = decodeRedirect(a.href);
-      if (dest && isExternal(dest, ownHosts)) return dest;
-    }
-    return '';
+      if (!dest || !isExternal(dest, ownHosts)) return;
+      let score = -i * 0.01; // document order only breaks ties
+      const label = text(a).toLowerCase();
+      if (CTA.has(label) || [...a.querySelectorAll('div, span')].some((n) => CTA.has(text(n).toLowerCase()))) score += 4;
+      if (a.querySelector('img, video')) score += 2;
+      if (a.closest(COPY_SELECTOR)) score -= 3;
+      try {
+        const u = new URL(dest);
+        if (u.pathname.length > 1) score += 2;
+        if (u.search) score += 0.5;
+      } catch {}
+      if (!best || score > best.score) best = { dest, score };
+    });
+    return best?.dest || '';
   }
 
   function findCta(root) {

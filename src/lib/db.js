@@ -62,6 +62,18 @@ function withHistory(ad, engagement, now) {
   return history.slice(-HISTORY_MAX);
 }
 
+/** True when `next` points deeper into the same site than `prev` (e.g. a product page vs. the homepage). */
+function moreSpecificUrl(next, prev) {
+  try {
+    const a = new URL(next);
+    const b = new URL(prev);
+    const depth = (u) => (u.pathname.replace(/\/$/, '') + u.search).length;
+    return a.hostname.replace(/^www\./, '') === b.hostname.replace(/^www\./, '') && depth(a) > depth(b);
+  } catch {
+    return false;
+  }
+}
+
 export function mergeAd(prev, incoming, now, { countSighting = true } = {}) {
   const out = { ...prev };
   for (const [key, value] of Object.entries(incoming)) {
@@ -71,9 +83,13 @@ export function mergeAd(prev, incoming, now, { countSighting = true } = {}) {
       out[key] = key === 'extra' ? { ...(prev.extra || {}), ...value } : value;
     } else if (key === 'startedRunning' && prev.startedRunning) {
       out[key] = prev.startedRunning < value ? prev.startedRunning : value;
-    } else if (isEmpty(prev[key]) || key === 'active') {
+    } else if (isEmpty(prev[key]) || key === 'active' || (key === 'landingUrl' && moreSpecificUrl(value, prev.landingUrl))) {
       out[key] = value;
     }
+  }
+  // A real destination URL from a page capture supersedes the API's domain-only value.
+  if (out.landingUrl !== prev.landingUrl && out.extra?.landingDomainOnly && !incoming.extra?.landingDomainOnly) {
+    out.extra = { ...out.extra, landingDomainOnly: false };
   }
   if (incoming.extra?.engagement) {
     // Counters only grow; keep the max so a half-rendered read can't lower them.

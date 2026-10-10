@@ -314,7 +314,9 @@ async function openDrawer(id) {
     h('dl', { class: 'facts' },
       fact('Advertiser', link(ad.advertiserUrl, ad.advertiser) || ad.advertiser),
       fact('Call to action', ad.cta),
-      fact('Landing page', link(ad.landingUrl)),
+      fact('Landing page', ad.extra?.landingDomainOnly
+        ? h('span', {}, link(ad.landingUrl), h('span', { class: 'sub' }, ' (domain only: Meta\'s API doesn\'t give the exact page. Open the ad in the Ad Library and click Save to get it.)'))
+        : link(ad.landingUrl)),
       fact('Format', ad.mediaType),
       fact('Placement', ad.extra?.placement?.replace(/_/g, ' ')),
       fact('Search keyword', ad.extra?.keyword),
@@ -329,7 +331,7 @@ async function openDrawer(id) {
     ),
     h('div', { class: 'actions' },
       safeUrl(ad.postUrl) && h('a', { class: 'ghost', href: ad.postUrl, target: '_blank', rel: 'noopener' }, 'Open ad ↗'),
-      safeUrl(ad.landingUrl) && h('a', { class: 'ghost', href: ad.landingUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Landing page ↗'),
+      safeUrl(ad.landingUrl) && h('a', { class: 'ghost', href: ad.landingUrl, target: '_blank', rel: 'noopener noreferrer' }, ad.extra?.landingDomainOnly ? 'Website (domain only) ↗' : 'Landing page ↗'),
       h('a', { class: 'ghost', href: adLibSearch, target: '_blank', rel: 'noopener' }, 'All their ads in Meta Ad Library ↗'),
       h('button', { class: 'ghost', onclick: (e) => copyText(e.currentTarget, [ad.headline, ad.text].filter(Boolean).join('\n\n')) }, 'Copy ad copy'),
       fav,
@@ -573,6 +575,7 @@ function fromApi(a) {
     lastSeen: Date.now(),
     extra: {
       libraryId: a.id,
+      landingDomainOnly: true, // the API exposes the display domain, never the full destination URL
       publisherPlatforms: a.publisher_platforms,
       languages: a.languages,
       euReach: a.eu_total_reach,
