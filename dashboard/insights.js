@@ -6,6 +6,7 @@ import { PLATFORMS } from '../src/lib/settings.js';
 const DAY = E.DAY;
 let C; // context from dashboard.js: { h, setChildren, openDrawer, showDrawer, est, scoreOf, fmtDate, money, num, pct, download, toCsvRows }
 const scope = { q: '', platform: '', industry: '', period: '0', minScore: 0 };
+let latestAds = [];
 
 const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const median = (xs) => {
@@ -214,8 +215,9 @@ function weekly(rows, weeks = 16) {
 }
 
 // ---------------------------------------------------------------- main render
-export function renderMarket(root, ctx, ads) {
+export function renderMarket(root, ctx, ads = latestAds) {
   C = ctx;
+  latestAds = ads;
   const { h, setChildren } = C;
 
   if (!root.querySelector('.scope')) {
@@ -231,7 +233,7 @@ export function renderMarket(root, ctx, ads) {
       ...[[0, 'Any score'], [45, 'Score 45+'], [70, 'Score 70+ (winners)']].map(([v, l]) => h('option', { value: v }, l)));
     const update = () => {
       Object.assign(scope, { q: q.value.trim().toLowerCase(), platform: platform.value, industry: industry.value, period: period.value, minScore: Number(minScore.value) });
-      renderMarket(root, C, ads);
+      renderMarket(root, C);
     };
     let t;
     q.addEventListener('input', () => (clearTimeout(t), (t = setTimeout(update, 250))));
@@ -340,7 +342,7 @@ export function renderMarket(root, ctx, ads) {
       section('Phrases that win', 'Recurring 2–3 word phrases across ad copy, with how strongly each over-indexes in winning ads.', phraseTable)),
     h('div', { class: 'panels' },
       section('Offers', null, traitTable(rows, (r) => r.offers, isWinner, 'Offer')),
-      section('Price points in copy', null, traitTable(rows.filter((r) => r.prices.length), (r) => [...new Set(r.prices.map(priceBucket))], isWinner, 'Price band'))),
+      section('Price points in copy', 'Prices mentioned in ad copy, converted to approximate USD.', traitTable(rows.filter((r) => r.prices.length), (r) => [...new Set(r.prices.map(priceBucket))], isWinner, 'Price band'))),
     h('div', { class: 'panels' },
       section('Creative format', null, traitTable(rows, (r) => [r.ad.mediaType || 'unknown'], isWinner, 'Format')),
       section('Call to action', null, traitTable(rows.filter((r) => r.ad.cta), (r) => [r.ad.cta], isWinner, 'CTA'))),
@@ -355,7 +357,7 @@ export function renderMarket(root, ctx, ads) {
       section('Creative survival', null, survival)),
     section('Audience (Meta-reported)', null, audienceView(rows)),
     h('div', { class: 'panels' },
-      section('Landing domains', null, barList(domains, { onClick: (d) => ((scope.q = d), (root.querySelector('#m-q').value = d), renderMarket(root, C, ads)) })),
+      section('Landing domains', null, barList(domains, { onClick: (d) => ((scope.q = d), (root.querySelector('#m-q').value = d), renderMarket(root, C)) })),
       section('Tech stack & pixels', 'From landing pages you analyzed (🔬 in an ad\'s details).', barList([...tech.entries()].sort((a, b) => b[1] - a[1]), { limit: 15 }))),
     h('div', { class: 'panels' },
       section('Engagement leaders', 'Fastest-growing engagement, measured between your sightings when possible.', table([

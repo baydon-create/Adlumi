@@ -134,6 +134,32 @@ export async function upsertAd(incoming, now = Date.now(), opts = {}) {
   return result;
 }
 
+/**
+ * Applies the user's own fields (favorite, tags, notes, industry correction, landing analysis)
+ * onto the latest stored copy in one transaction, so edits never overwrite newer capture data
+ * (sightings, engagement history) that arrived while the dashboard had an older copy.
+ */
+export async function saveUserFields(ad) {
+  const db = await openDb();
+  const t = db.transaction('ads', 'readwrite');
+  const s = t.objectStore('ads');
+  let saved;
+  s.get(ad.id).onsuccess = (e) => {
+    const cur = e.target.result;
+    if (!cur) return;
+    saved = {
+      ...cur,
+      favorite: !!ad.favorite,
+      tags: ad.tags || [],
+      notes: ad.notes || '',
+      extra: { ...(cur.extra || {}), industry: ad.extra?.industry, landing: ad.extra?.landing ?? cur.extra?.landing },
+    };
+    s.put(saved);
+  };
+  await txDone(t);
+  return saved;
+}
+
 export const getAd = async (id) => asPromise((await store('ads')).get(id));
 export const putAd = async (ad) => asPromise((await store('ads', 'readwrite')).put(ad));
 export const allAds = async () => asPromise((await store('ads')).getAll());

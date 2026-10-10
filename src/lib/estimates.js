@@ -87,6 +87,55 @@ export function parseCount(s) {
   return Math.round(n * ({ k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1));
 }
 
+// ------------------------------------------------------------------ prices & currency
+const toAsciiDigits = (s) =>
+  String(s ?? '')
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/\u066B/g, '.')
+    .replace(/\u066C/g, ',');
+
+// Approximate USD conversion rates, used only to put prices on a common scale.
+export const USD_RATES = { USD: 1, EUR: 1.1, GBP: 1.3, EGP: 0.021, SAR: 0.267, AED: 0.272, KWD: 3.25, QAR: 0.275 };
+
+const CUR = String.raw`(?:US\$|E£|£E|L\.?E\b|EGP|ج\.?\s?م|جنيه|SAR|ر\.?\s?س|ريال|AED|د\.?\s?إ|درهم|KWD|QAR|USD|EUR|GBP|[$€£])`;
+const AMOUNT = String.raw`\d{1,3}(?:[,.\s]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?`;
+/** Matches "$1,299.00", "1.299,00 €", "499 جنيه", "EGP 1,250", "LE 350" … */
+export const PRICE_RE = new RegExp(`${CUR}\\s?(?:${AMOUNT})|(?:${AMOUNT})\\s?${CUR}`, 'gi');
+
+export function currencyOf(s) {
+  const t = toAsciiDigits(s);
+  if (/E£|£E|L\.?E\b|EGP|ج\.?\s?م|جنيه/i.test(t)) return 'EGP';
+  if (/SAR|ر\.?\s?س|ريال/i.test(t)) return 'SAR';
+  if (/AED|د\.?\s?إ|درهم/i.test(t)) return 'AED';
+  if (/KWD/i.test(t)) return 'KWD';
+  if (/QAR/i.test(t)) return 'QAR';
+  if (/€|EUR/i.test(t)) return 'EUR';
+  if (/£|GBP/i.test(t)) return 'GBP';
+  if (/\$|USD/i.test(t)) return 'USD';
+  return null;
+}
+
+/** "1,299.00" -> 1299, "1.299,50" -> 1299.5, "39,00" -> 39, "٤٩٩" -> 499. The last 1–2 digit group is decimals. */
+export function parsePrice(s) {
+  const t = toAsciiDigits(s).replace(/[^\d.,]/g, '');
+  if (!/\d/.test(t)) return null;
+  const m = t.match(/^(.*?)(?:[.,](\d{1,2}))?$/);
+  const n = parseFloat(m[1].replace(/[.,]/g, '') + (m[2] ? `.${m[2]}` : ''));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** Price strings -> USD amounts (approximate conversion; unknown currencies are dropped). */
+export function pricesInUsd(strings, fallbackCurrency = null) {
+  return strings
+    .map((p) => {
+      const value = parsePrice(p);
+      const rate = USD_RATES[currencyOf(p) || fallbackCurrency];
+      return value && rate ? value * rate : null;
+    })
+    .filter((n) => n > 0);
+}
+
 // ------------------------------------------------------------------ classification
 const adCorpus = (ad) =>
   [ad.headline, ad.text, ad.landingDomain, ad.extra?.landing?.title, ad.extra?.landing?.description, ad.extra?.keyword]
@@ -193,13 +242,15 @@ export function estimate(ad, settings = {}, now = Date.now()) {
     : bench.cpm && scale(rng(...bench.cpm), geo * industry.cpm);
   const ctr = rng(...bench.ctr);
   const cvr = settings.cvrOverride ? fixed(Number(settings.cvrOverride) / 100) : rng(...industry.cvr);
-  const landingPrices = (ad.extra?.landing?.prices || []).map((p) => parseFloat(p.replace(/[^\d.,]/g, '').replace(',', '.'))).filter((n) => n > 0);
+  const landing = ad.extra?.landing;
+  const landingPrices = pricesInUsd(landing?.prices || [], landing?.currency);
   let aov = null;
   if (settings.aovOverride) aov = fixed(Number(settings.aovOverride));
   else if (landingPrices.length >= 2) {
     const sorted = landingPrices.sort((a, b) => a - b);
     aov = rng(sorted[Math.floor(sorted.length * 0.25)], sorted[Math.floor(sorted.length * 0.75)] * 1.3);
-    basis.push('Order value taken from prices found on the landing page.');
+    const cur = landing?.currency && landing.currency !== 'USD' ? ` (converted from ${landing.currency} at an approximate rate)` : '';
+    basis.push(`Order value taken from prices found on the landing page${cur}.`);
   } else if (industry.aov) aov = rng(...industry.aov);
 
   let impressions = null;
@@ -359,7 +410,8 @@ export function anglesOf(ad) {
 export function offersOf(ad) {
   const t = `${ad.headline || ''} ${ad.text || ''} ${(ad.extra?.landing?.offers || []).join(' ')}`;
   const out = [];
-  for (const m of t.matchAll(/\b(\d{1,2})\s?% off/gi)) out.push(`${m[1]}% off`);
+  for (const m of toAsciiDigits(t).matchAll(/\b(\d{1,2})\s?% off|(?:خصم|تخفيض)\s*(\d{1,2})\s*[%٪]|(\d{1,2})\s*[%٪]\s*(?:خصم|تخفيض)/gi)) out.push(`${m[1] || m[2] || m[3]}% off`);
+  if (/شحن مجاني|توصيل مجاني/.test(t)) out.push('Free shipping');
   if (/\bfree (shipping|delivery)/i.test(t)) out.push('Free shipping');
   if (/\bbuy (one|1),? get (one|1)|\bBOGO\b/i.test(t)) out.push('BOGO');
   if (/\bfree trial/i.test(t)) out.push('Free trial');
@@ -369,9 +421,10 @@ export function offersOf(ad) {
   return [...new Set(out)];
 }
 
+/** Prices mentioned in the ad copy, in approximate USD. */
 export function pricePoints(ad) {
-  const t = `${ad.headline || ''} ${ad.text || ''}`;
-  return [...t.matchAll(/[$€£]\s?(\d{1,5}(?:[.,]\d{2})?)/g)].map((m) => parseFloat(m[1].replace(',', '.'))).filter((n) => n > 0);
+  const t = toAsciiDigits(`${ad.headline || ''} ${ad.text || ''}`);
+  return pricesInUsd(t.match(PRICE_RE) || []);
 }
 
 export const hookOf = (ad) => (ad.text || ad.headline || '').split(/(?<=[.!?])\s|\n/)[0].slice(0, 160).trim();

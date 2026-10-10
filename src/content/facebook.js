@@ -18,7 +18,7 @@
 
   function isSponsored(post) {
     if (post.querySelector('a[href*="/ads/about"], [aria-label="Sponsored" i], a[href*="ad_preferences"]')) return true;
-    if (A.SPONSORED.test(svgLabel(post))) return true;
+    if (A.SPONSORED.test(A.normalize(svgLabel(post)))) return true;
     const nodes = post.querySelectorAll('a[role="link"] span, span[dir="auto"] > span, a[href="#"]');
     for (let i = 0; i < nodes.length && i < 250; i++) {
       const t = A.text(nodes[i]);
@@ -41,14 +41,17 @@
 
   // The reaction total sits in the post footer as a bare number ("1.2K") right before
   // the "N comments" / "N shares" counters, next to a "See who reacted" control.
+  const COUNT_LINE = /^\d[\d.,]*\s?(?:[KM]|ألف|الف|مليون)?$/i;
+  const COUNTER_LINE = /\d\s+(?:comments?|shares?|تعليقات|تعليقًا|تعليقا|تعليق|مشاركات|مشاركة)$/i;
+
   function reactions(post) {
-    const reactedBtn = post.querySelector('[aria-label*="who reacted" i]');
-    const near = reactedBtn && A.parseCount(A.lines(reactedBtn.parentElement).find((l) => /^\d[\d.,]*\s?[KM]?$/i.test(l)));
+    const reactedBtn = post.querySelector('[aria-label*="who reacted" i], [aria-label*="تفاعل"]');
+    const near = reactedBtn && A.parseCount(A.lines(reactedBtn.parentElement).find((l) => COUNT_LINE.test(l)));
     if (near != null) return near;
     const ls = A.lines(post);
-    const idx = ls.findIndex((l) => /\d\s+(comments?|shares?)$/i.test(l));
+    const idx = ls.findIndex((l) => COUNTER_LINE.test(l));
     for (let i = idx - 1; i >= Math.max(0, idx - 3); i--) {
-      if (/^\d[\d.,]*\s?[KM]?$/i.test(ls[i])) return A.parseCount(ls[i]);
+      if (COUNT_LINE.test(ls[i])) return A.parseCount(ls[i]);
     }
     return null;
   }

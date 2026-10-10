@@ -21,14 +21,18 @@
       const card = tweet.querySelector('[data-testid="card.wrapper"]');
       const handle = nameLines.find((l) => l.startsWith('@')) || '';
       const statusLink = tweet.querySelector('a[href*="/status/"]');
+      // Check each text element (not rendered lines): the domain often shares a line with the headline.
+      const DOMAIN = /^(?:From )?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})$/i;
+      const cardDomain = card ? [...card.querySelectorAll('span, div')].map((n) => A.text(n).match(DOMAIN)?.[1]).find(Boolean) || '' : '';
       return {
         advertiser: nameLines[0] || handle,
         advertiserUrl: handle ? `https://x.com/${handle.slice(1)}` : '',
         text: A.text(tweet.querySelector('[data-testid="tweetText"]')),
         headline: card ? A.lines(card).find((l) => !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(l) && !/^From /.test(l)) || '' : '',
         cta: A.findCta(tweet),
-        // Card links are t.co shorteners; the card shows the real domain as text.
-        landingUrl: card?.querySelector('a[href]')?.href || '',
+        // Card links are t.co shorteners; the card shows the real domain as text, which is far
+        // more useful for domain stats and landing-page analysis than "t.co".
+        landingUrl: cardDomain ? `https://${cardDomain.toLowerCase()}` : card?.querySelector('a[href]')?.href || '',
         postUrl: statusLink ? statusLink.href.split('?')[0] : '',
         ...A.collectMedia(tweet, 150),
         extra: {
@@ -45,7 +49,8 @@
               views: pick(/(\d[\d.,]*[KMB]?) view/i) ?? A.parseCount(viewsLink.match(/(\d[\d.,]*[KMB]?) view/i)?.[1]),
             });
           })(),
-          cardDomain: card ? A.lines(card).find((l) => /^(From )?[a-z0-9.-]+\.[a-z]{2,}$/i.test(l))?.replace(/^From /, '') || '' : '',
+          cardDomain,
+          shortLink: card?.querySelector('a[href]')?.href || '',
           placement: 'timeline',
         },
       };

@@ -18,6 +18,7 @@ A PowerAdSpy-style ad spy tool that runs entirely in your browser. As you browse
 | **Winning score (0–100)** | A composite of longevity, active status, scaling (number of ad variations), engagement velocity, EU reach, placements and how often you see the ad. |
 | **Market Intelligence** | Scope by keyword, platform, industry, time period or score. Shows **share of voice** by estimated spend, monthly run-rate per competitor, winning ads, and which **messaging angles, phrases, offers, price bands, formats, CTAs, copy lengths and hook styles over-index in winners** ("winner lift"). Also launch cadence, creative survival curve, Meta-reported audience (age, gender, country), landing domains, tech stack and Google keywords. |
 | **Competitor deep dive** | Click any competitor for their spend and run-rate, launch cadence, platforms, formats, angles, offers, **funnel map** (which landing pages their ads point to), audience and best ads. |
+| **Languages & currencies** | Works with Facebook in English or Arabic (labels, dates, buttons, Arabic numerals such as "١٫٢ ألف"). Prices in USD, EUR, GBP, EGP (LE, E£, جنيه), SAR and AED are recognised and converted to approximate USD for comparisons. |
 | **Local thumbnails** | Saves a downscaled copy of each creative, so previews still work after Facebook's signed CDN links expire. |
 
 ## How the estimates work (and how accurate they are)

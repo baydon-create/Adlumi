@@ -72,12 +72,18 @@ function boundedObject(v) {
   return json.length <= 4000 ? JSON.parse(json) : {};
 }
 
-async function bumpTabCount(tabId) {
-  const key = `tab:${tabId}`;
-  const { [key]: n = 0 } = await chrome.storage.session.get(key);
-  await chrome.storage.session.set({ [key]: n + 1 });
-  chrome.action.setBadgeBackgroundColor({ color: '#6d4aff', tabId });
-  chrome.action.setBadgeText({ text: String(n + 1), tabId });
+// Captures arrive in bursts; serialise the read-modify-write so concurrent ones aren't lost.
+let tabCountQueue = Promise.resolve();
+function bumpTabCount(tabId) {
+  tabCountQueue = tabCountQueue.then(async () => {
+    const key = `tab:${tabId}`;
+    const { [key]: n = 0 } = await chrome.storage.session.get(key);
+    await chrome.storage.session.set({ [key]: n + 1 });
+    // The tab may have closed meanwhile; badge calls then reject harmlessly.
+    chrome.action.setBadgeBackgroundColor({ color: '#6d4aff', tabId }).catch(() => {});
+    chrome.action.setBadgeText({ text: String(n + 1), tabId }).catch(() => {});
+  }).catch(() => {});
+  return tabCountQueue;
 }
 
 chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.session.remove(`tab:${tabId}`));

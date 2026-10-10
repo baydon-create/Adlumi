@@ -9,7 +9,7 @@
       const t = A.text(n);
       if (t.length > 30) continue;
       if (A.SPONSORED.test(t)) return 'sponsored';
-      if (/^paid partnership/i.test(t)) return 'branded';
+      if (/^paid partnership|^شراكة مدفوعة/i.test(t)) return 'branded';
     }
     return '';
   }

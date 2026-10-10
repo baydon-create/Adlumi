@@ -53,6 +53,8 @@ const SIGNATURES = {
   ],
 };
 
+import { PRICE_RE, currencyOf, parsePrice } from '../src/lib/estimates.js';
+
 const match = (html, list) => list.filter(([, re]) => re.test(html)).map(([name]) => name);
 
 /** Must be called from a user gesture (it may show a permission prompt). */
@@ -82,7 +84,11 @@ export async function analyzeLanding(url) {
   const parts = [];
   while (walker.nextNode()) parts.push(walker.currentNode.nodeValue);
   const bodyText = parts.join(' ').replace(/\s+/g, ' ');
-  const prices = [...new Set(bodyText.match(/(?:[$€£]\s?\d{1,5}(?:[.,]\d{2})?|\d{1,5}(?:[.,]\d{2})?\s?(?:€|USD|EUR|GBP))/g) || [])].slice(0, 10);
+  const digits = bodyText.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+  const prices = [...new Set((digits.match(PRICE_RE) || []).map((p) => p.trim()))].filter((p) => parsePrice(p)).slice(0, 12);
+  // Dominant currency on the page, so bare-number prices (e.g. Shopify feeds) can be converted.
+  const curCounts = prices.map(currencyOf).filter(Boolean).reduce((m, c) => m.set(c, (m.get(c) || 0) + 1), new Map());
+  const currency = [...curCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
   const result = {
     finalUrl: res.url,
@@ -94,7 +100,8 @@ export async function analyzeLanding(url) {
     tracking: match(html, SIGNATURES.tracking),
     apps: match(html, SIGNATURES.apps),
     prices,
-    offers: [...new Set(bodyText.match(/\b\d{1,2}\s?% off\b|\bfree shipping\b|\bbuy \d+,? get \d+\b|\bBOGO\b/gi) || [])].slice(0, 6),
+    currency,
+    offers: [...new Set(digits.match(/\b\d{1,2}\s?% off\b|\bfree shipping\b|\bbuy \d+,? get \d+\b|\bBOGO\b|(?:خصم|تخفيض)\s*\d{1,2}\s*[%٪]|\d{1,2}\s*[%٪]\s*(?:خصم|تخفيض)|شحن مجاني|توصيل مجاني/gi) || [])].slice(0, 6),
     analyzedAt: Date.now(),
   };
 
@@ -106,6 +113,7 @@ export async function analyzeLanding(url) {
       const variantPrices = products.flatMap((p) => p.variants.map((v) => Number(v.price))).filter((n) => n > 0);
       result.shopify = {
         products: products.length,
+        currency,
         minPrice: variantPrices.length ? Math.min(...variantPrices) : null,
         maxPrice: variantPrices.length ? Math.max(...variantPrices) : null,
         newest: products

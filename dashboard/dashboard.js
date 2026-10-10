@@ -183,7 +183,7 @@ function card(ad, { onSave } = {}) {
       e.stopPropagation();
       ad.favorite = !ad.favorite;
       star.classList.toggle('on', ad.favorite);
-      await db.putAd(ad);
+      await db.saveUserFields(ad);
     });
     thumb.append(star);
   }
@@ -221,9 +221,11 @@ function fillFilterOptions() {
     indSel.append(...Object.values(E.INDUSTRY_BY_KEY).map((i) => h('option', { value: i.key }, i.label)));
   }
   const platformSel = $('#f-platform');
+  const curPlatform = platformSel.value;
   const present = new Set(ADS.map((a) => a.platform));
   platformSel.replaceChildren(h('option', { value: '' }, 'All platforms'),
     ...Object.entries(PLATFORMS).filter(([k]) => present.has(k)).map(([k, p]) => h('option', { value: k }, p.label)));
+  platformSel.value = present.has(curPlatform) ? curPlatform : '';
   const ctas = [...new Set(ADS.map((a) => a.cta).filter(Boolean))].sort();
   const ctaSel = $('#f-cta');
   const cur = ctaSel.value;
@@ -238,7 +240,7 @@ async function openDrawer(id) {
   history.replaceState(null, '', `#ad=${encodeURIComponent(id)}`);
   const drawer = $('#drawer');
   const platform = PLATFORMS[ad.platform] || { label: ad.platform, color: '#666' };
-  const save = () => db.putAd(ad);
+  const save = () => db.saveUserFields(ad);
 
   const gallery = h('div', { class: 'gallery' });
   const thumb = await thumbFor(ad);
@@ -494,7 +496,7 @@ function renderAnalysis(box, r) {
     tagRow('Offers', r.offers),
     r.shopify && h('div', { style: { marginTop: '8px' } },
       h('b', {}, `Shopify store: ${r.shopify.products}${r.shopify.products === 250 ? '+' : ''} products`),
-      r.shopify.minPrice != null && h('div', { class: 'sub' }, `Price range ${r.shopify.minPrice} – ${r.shopify.maxPrice}`),
+      r.shopify.minPrice != null && h('div', { class: 'sub' }, `Price range ${r.shopify.minPrice} – ${r.shopify.maxPrice}${r.shopify.currency ? ` ${r.shopify.currency}` : ''}`),
       r.shopify.newest?.length && h('div', { class: 'sub' }, 'Newest products: ',
         ...r.shopify.newest.flatMap((p, i) => [i ? ', ' : '', h('a', { href: p.url, target: '_blank', rel: 'noopener noreferrer' }, p.title)]))
     ),
@@ -502,10 +504,21 @@ function renderAnalysis(box, r) {
   );
 }
 
+let refreshPending = false;
+async function liveRefresh() {
+  refreshPending = false;
+  const before = shown;
+  const scrollY = window.scrollY;
+  await refresh();
+  while (shown < before && shown < filtered.length) renderMore();
+  window.scrollTo(0, scrollY);
+}
+
 function closeDrawer() {
   $('#drawer').hidden = true;
   $('#drawer-backdrop').hidden = true;
   if (location.hash.startsWith('#ad=')) history.replaceState(null, '', location.pathname);
+  if (refreshPending) liveRefresh();
 }
 
 async function copyText(btn, text) {
@@ -598,6 +611,21 @@ function fromApi(a) {
   };
 }
 
+const EU_UK = new Set('AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE GB UK IS LI NO'.split(' '));
+
+/** Turns Meta's API errors into what they mean for the user. */
+function explainApiError(err) {
+  const msg = err?.message || String(err);
+  const code = err?.code;
+  if (code === 190 || /access token|session has expired|OAuthException.*expired/i.test(msg))
+    return 'Your Meta access token is invalid or has expired. Generate a new one in the Graph API Explorer (and extend it in the Access Token Debugger), then paste it in Settings.';
+  if (code === 10 || code === 200 || /does not have permission|not authorized|permission/i.test(msg))
+    return 'Meta hasn\'t approved this account for the Ad Library API yet. Go to facebook.com/ads/library/api, click "Get started" and complete identity confirmation (it can take 1–2 days), then generate a new token.';
+  if (code === 4 || code === 17 || code === 613 || /rate limit|too many calls/i.test(msg))
+    return 'Meta\'s rate limit was reached. Wait a few minutes and try again.';
+  return `Meta API error: ${msg}`;
+}
+
 async function apiSearch(more = false) {
   const status = $('#api-status-line');
   const settings = await getSettings();
@@ -609,6 +637,14 @@ async function apiSearch(more = false) {
   if (!more) {
     const countries = $('#api-country').value.toUpperCase().split(/[\s,]+/).filter(Boolean);
     COUNTRIES_SEARCHED = countries.length ? countries : ['DE'];
+    if ($('#api-type').value === 'ALL' && !COUNTRIES_SEARCHED.some((c) => EU_UK.has(c))) {
+      status.replaceChildren(
+        `Meta's API only returns commercial ads delivered in the EU/UK, so a search in ${COUNTRIES_SEARCHED.join(', ')} returns political/issue ads only. `,
+        h('a', { href: `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=${encodeURIComponent(COUNTRIES_SEARCHED[0])}&q=${encodeURIComponent($('#api-q').value.trim())}&search_type=keyword_unordered`, target: '_blank', rel: 'noopener' }, 'Open this search on the Ad Library website'),
+        ' and use "Save all visible" instead. It has every ad for that country.'
+      );
+      return;
+    }
     const p = new URLSearchParams({
       search_terms: $('#api-q').value.trim(),
       ad_reached_countries: JSON.stringify(countries.length ? countries : ['DE']),
@@ -631,7 +667,7 @@ async function apiSearch(more = false) {
       retry.searchParams.set('fields', API_FIELDS);
       json = await (await fetch(retry)).json();
     }
-    if (json.error) throw new Error(json.error.message);
+    if (json.error) throw Object.assign(new Error(json.error.message), { code: json.error.code });
     const ads = (json.data || []).map(fromApi);
     const savedIds = new Set((await Promise.all(ads.map((a) => db.getAd(a.id)))).filter(Boolean).map((a) => a.id));
     for (const ad of ads) {
@@ -651,7 +687,7 @@ async function apiSearch(more = false) {
     $('#api-more').hidden = !apiNext;
     status.textContent = `${$('#api-results').children.length} ads loaded. Click a card to open it in the Ad Library, ＋ to save it.`;
   } catch (err) {
-    status.textContent = `Meta API error: ${err.message}`;
+    status.textContent = explainApiError(err);
   }
 }
 
@@ -820,11 +856,10 @@ async function boot() {
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.type !== 'ads:changed') return;
     clearTimeout(pending);
-    pending = setTimeout(async () => {
-      if (!$('#drawer').hidden) return; // don't reshuffle the grid under an open drawer
-      const before = shown;
-      await refresh();
-      while (shown < before && shown < filtered.length) renderMore();
+    pending = setTimeout(() => {
+      // Don't reshuffle the grid under an open drawer; closeDrawer() runs it instead.
+      if (!$('#drawer').hidden) refreshPending = true;
+      else liveRefresh();
     }, 1500);
   });
 

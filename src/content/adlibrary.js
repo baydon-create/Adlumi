@@ -3,8 +3,15 @@
 (() => {
   const A = window.__adspy;
   const OWN = ['facebook.com', 'fb.com', 'fbcdn.net', 'messenger.com', 'fb.me', 'instagram.com'];
-  const ID_RE = /Library ID:?\s*(\d{6,})/i;
+  // Library IDs are long numbers shown after a short label ("Library ID: 1234…", "معرف المكتبة: 1234…").
+  // Matching the number instead of the English label makes this work in any Facebook language.
+  const ID_RE = /^[^\d]{2,40}?[:：]?\s*(\d{12,19})$/;
+  // Count "label: <id>" occurrences only, so phone numbers in the ad copy (+20…) don't split cards.
+  const ID_COUNT_RE = /[:：]\s*\d{12,19}(?!\d)/g;
   const START_RE = /Started running on\s+([A-Z][a-z]{2,8}\.? \d{1,2},? \d{4}|\d{1,2} [A-Z][a-z]{2,8}\.? \d{4})/;
+  const AR_MONTHS = { 'يناير': 1, 'فبراير': 2, 'مارس': 3, 'أبريل': 4, 'ابريل': 4, 'إبريل': 4, 'مايو': 5, 'يونيو': 6, 'يوليو': 7,
+    'أغسطس': 8, 'اغسطس': 8, 'سبتمبر': 9, 'أكتوبر': 10, 'اكتوبر': 10, 'نوفمبر': 11, 'ديسمبر': 12 };
+  const AR_DATE_RE = new RegExp(`(\\d{1,2})\\s+(${Object.keys(AR_MONTHS).join('|')})،?\\s+(\\d{4})`);
   const DAY = 86400000;
 
   const cards = new Map(); // libraryId -> { el, ad }
@@ -12,20 +19,30 @@
 
   const isLibrary = () => location.pathname.startsWith('/ads/library');
 
+  /** Short text elements whose own text is "<label>: <12–19 digit id>". */
   function idLabels() {
     const snap = document.evaluate(
-      "//span[contains(text(),'Library ID')] | //div[contains(text(),'Library ID')]",
+      "//span[string-length(normalize-space(text())) > 11 and string-length(normalize-space(text())) < 70]" +
+        " | //div[string-length(normalize-space(text())) > 11 and string-length(normalize-space(text())) < 70]",
       document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null
     );
-    return Array.from({ length: snap.snapshotLength }, (_, i) => snap.snapshotItem(i));
+    const out = [];
+    for (let i = 0; i < snap.snapshotLength; i++) {
+      const el = snap.snapshotItem(i);
+      const id = A.normalize(el.textContent.trim()).match(ID_RE)?.[1];
+      if (id) out.push({ el, id });
+    }
+    return out;
   }
 
-  // The card is the largest ancestor that still contains exactly one "Library ID".
+  const idCount = (el) => (A.normalize(el.textContent).match(ID_COUNT_RE) || []).length;
+
+  // The card is the largest ancestor that still contains exactly one library ID.
   function cardFor(label) {
     let el = label;
     for (let depth = 0; depth < 14 && el.parentElement; depth++) {
       const parent = el.parentElement;
-      if ((parent.textContent.match(/Library ID/g) || []).length !== 1) break;
+      if (idCount(parent) !== 1) break;
       if (parent.getBoundingClientRect().height > 1800) break;
       el = parent;
     }
@@ -37,16 +54,24 @@
     return Number.isNaN(t) ? '' : new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
+  function startDate(raw) {
+    const en = raw.match(START_RE)?.[1];
+    if (en) return toIsoDate(en);
+    const ar = raw.match(AR_DATE_RE);
+    if (ar) return `${ar[3]}-${String(AR_MONTHS[ar[2]]).padStart(2, '0')}-${ar[1].padStart(2, '0')}`;
+    return '';
+  }
+
   function extract(card, libraryId) {
-    const raw = card.innerText || '';
-    const startedRunning = toIsoDate(raw.match(START_RE)?.[1] || '');
-    const active = /\bInactive\b/.test(raw) ? false : /\bActive\b/.test(raw) ? true : undefined;
+    const raw = A.normalize(card.innerText || '');
+    const startedRunning = startDate(raw);
+    const active = /\bInactive\b|غير نشط/.test(raw) ? false : /\bActive\b|نشط/.test(raw) ? true : undefined;
     const advLink = [...card.querySelectorAll('a[href]')].find((a) => {
       const href = a.getAttribute('href') || '';
       const t = A.text(a);
       return t.length > 1 && t.length < 90 && /facebook\.com\/(?!ads\/)|^\/(?!ads\/)[\w.]+\/?/.test(href);
     });
-    const creativeUses = raw.match(/(\d+)\s+ads? use this creative/i)?.[1];
+    const creativeUses = raw.match(/(\d+)\s+(?:ads? use this creative|إعلانات? تستخدم)/i)?.[1];
     return {
       id: `fb-lib-${libraryId}`,
       platform: 'adlibrary',
@@ -63,7 +88,7 @@
       ...A.collectMedia(card, 120),
       extra: {
         libraryId,
-        multipleVersions: /multiple versions/i.test(raw),
+        multipleVersions: /multiple versions|إصدارات متعددة/i.test(raw),
         adsUsingCreative: creativeUses ? Number(creativeUses) : undefined,
       },
     };
@@ -174,9 +199,7 @@
   function scan() {
     injectStyle();
     const fresh = [];
-    for (const label of idLabels()) {
-      const libraryId = label.textContent.match(ID_RE)?.[1];
-      if (!libraryId) continue;
+    for (const { el: label, id: libraryId } of idLabels()) {
       const known = cards.get(libraryId);
       if (known && known.el.isConnected && known.el.querySelector('.adspy-lib-bar')) continue;
       const el = cardFor(label);
@@ -190,5 +213,11 @@
     updateSaveAll();
   }
 
-  A.register({ platform: 'adlibrary', active: isLibrary, scan });
+  A.register({
+    platform: 'adlibrary',
+    active: isLibrary,
+    scan,
+    // Facebook navigates without reloading; drop the floating button when leaving the Ad Library.
+    onInactive: () => document.getElementById('adspy-save-all')?.remove(),
+  });
 })();

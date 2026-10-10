@@ -5,7 +5,19 @@
   if (window.__adspy) return;
 
   const SPONSORED =
-    /^(sponsored|promoted|ad|sponsorisé|sponsorisée|patrocinado|patrocinada|publicidad|gesponsert|anzeige|sponsorizzato|gesponsord|sponsorowane|sponsrad|sponset|sponsoroitu|реклама|sponsorlu|ممول|إعلان|赞助内容|贊助|広告|광고|bersponsor|được tài trợ|ได้รับการสนับสนุน|प्रायोजित)$/i;
+    /^(sponsored|promoted|ad|sponsorisé|sponsorisée|patrocinado|patrocinada|publicidad|gesponsert|anzeige|sponsorizzato|gesponsord|sponsorowane|sponsrad|sponset|sponsoroitu|реклама|sponsorlu|ممول|إعلان|اعلان|برعاية|مدعوم|赞助内容|贊助|広告|광고|bersponsor|được tài trợ|ได้รับการสนับสนุน|प्रायोजित)$/i;
+
+  /**
+   * Locale normalisation: Arabic-Indic digits -> ASCII, Arabic decimal/thousands marks,
+   * and removal of Arabic diacritics/tatweel (Facebook writes "مُموَّل" for "ممول").
+   */
+  const normalize = (str) =>
+    String(str ?? '')
+      .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+      .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+      .replace(/\u066B/g, '.')
+      .replace(/\u066C/g, ',')
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '');
 
   const CTA_LABELS = [
     'Shop now', 'Learn more', 'Sign up', 'Download', 'Install now', 'Install', 'Book now', 'Contact us',
@@ -16,7 +28,21 @@
     'Register', 'Get access', 'Claim offer', 'Watch now', 'View more', 'Get promotions', 'Inquire now',
     'Book a demo', 'Request demo', 'Get the app', 'Shop', 'Order', 'Get deal', 'See details', 'Join now',
   ];
-  const CTA = new Map(CTA_LABELS.map((l) => [l.toLowerCase(), l]));
+  // Arabic button labels, mapped to the English label so stats group them together.
+  const CTA_AR = {
+    'تسوق الآن': 'Shop now', 'التسوق الآن': 'Shop now', 'تسوق الان': 'Shop now', 'اعرف المزيد': 'Learn more',
+    'معرفة المزيد': 'Learn more', 'اطلب الآن': 'Order now', 'اطلب الان': 'Order now', 'سجل الآن': 'Sign up',
+    'التسجيل': 'Sign up', 'إرسال رسالة': 'Send message', 'أرسل رسالة': 'Send message', 'احجز الآن': 'Book now',
+    'تنزيل': 'Download', 'اتصل بنا': 'Contact us', 'اتصل الآن': 'Call now', 'الحصول على العرض': 'Get offer',
+    'احصل على العرض': 'Get offer', 'قدم الآن': 'Apply now', 'تقدم الآن': 'Apply now', 'شاهد المزيد': 'Watch more',
+    'اشترك': 'Subscribe', 'اشترك الآن': 'Subscribe', 'تثبيت الآن': 'Install now', 'استخدام التطبيق': 'Use app',
+    'إرسال رسالة واتساب': 'Send WhatsApp message', 'واتساب': 'WhatsApp', 'اشتر الآن': 'Buy now', 'شراء الآن': 'Buy now',
+    'زيارة الموقع': 'Visit website', 'ابدأ الآن': 'Get started', 'الحصول على عرض سعر': 'Get quote',
+  };
+  const CTA = new Map([
+    ...CTA_LABELS.map((l) => [l.toLowerCase(), l]),
+    ...Object.entries(CTA_AR).map(([ar, en]) => [normalize(ar), en]),
+  ]);
 
   const settings = { paused: false, badges: true, platforms: {} };
   let alive = true;
@@ -31,8 +57,8 @@
   }
 
   // ---------- DOM helpers ----------
-  const text = (el) => (el ? (el.innerText ?? el.textContent ?? '') : '').replace(/\s+/g, ' ').trim();
-  const lines = (el) => (el?.innerText || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  const text = (el) => normalize(el ? (el.innerText ?? el.textContent ?? '') : '').replace(/\s+/g, ' ').trim();
+  const lines = (el) => normalize(el?.innerText || '').split('\n').map((s) => s.trim()).filter(Boolean);
   const longest = (els) =>
     [...els].map(text).reduce((best, t) => (t.length > best.length ? t : best), '');
 
@@ -148,23 +174,24 @@
   /** "1.2K" -> 1200, "3,456" -> 3456, "1,2 M" -> 1200000 (mirrors src/lib/estimates.js). */
   function parseCount(v) {
     if (v == null) return null;
-    const m = String(v).replace(/\s/g, '').match(/^(\d[\d.,]*)([KkMmBb])?/);
+    const m = normalize(v).replace(/\s/g, '').match(/^(\d[\d.,]*)([KkMmBb]|ألف|الف|مليون|مليار)?/);
     if (!m) return null;
     let num = m[1];
     if (/^\d{1,3}(,\d{3})+$/.test(num)) num = num.replace(/,/g, '');
     else if (/^\d{1,3}(\.\d{3})+$/.test(num) && !m[2]) num = num.replace(/\./g, '');
     else num = num.replace(',', '.');
     const n = parseFloat(num);
-    return Number.isFinite(n) ? Math.round(n * ({ k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1)) : null;
+    const mult = { k: 1e3, m: 1e6, b: 1e9, 'ألف': 1e3, 'الف': 1e3, 'مليون': 1e6, 'مليار': 1e9 }[(m[2] || '').toLowerCase()] || 1;
+    return Number.isFinite(n) ? Math.round(n * mult) : null;
   }
 
-  const NUM = String.raw`(\d[\d.,]*\s?[KkMmBb]?)`;
+  const NUM = String.raw`(\d[\d.,]*\s?(?:[KkMmBb]|ألف|الف|مليون)?)`;
   const COUNT_PATTERNS = {
-    reactions: [String.raw`All reactions:?\s*${NUM}`, String.raw`${NUM}\s+reactions?\b`],
-    comments: [String.raw`${NUM}\s+comments?\b`, String.raw`View all ${NUM} comments`, String.raw`${NUM}\s+replies\b`],
-    shares: [String.raw`${NUM}\s+(?:shares?|reposts?|retweets?)\b`],
-    views: [String.raw`${NUM}\s+(?:views?|plays?)\b`],
-    likes: [String.raw`${NUM}\s+likes?\b`],
+    reactions: [String.raw`All reactions:?\s*${NUM}`, String.raw`${NUM}\s+reactions?\b`, String.raw`كل التفاعلات:?\s*${NUM}`],
+    comments: [String.raw`${NUM}\s+comments?\b`, String.raw`View all ${NUM} comments`, String.raw`${NUM}\s+replies\b`, String.raw`${NUM}\s+(?:تعليقات|تعليقًا|تعليقا|تعليق)`],
+    shares: [String.raw`${NUM}\s+(?:shares?|reposts?|retweets?)\b`, String.raw`${NUM}\s+(?:مشاركات|مشاركة)`],
+    views: [String.raw`${NUM}\s+(?:views?|plays?)\b`, String.raw`${NUM}\s+(?:مشاهدات|مشاهدة)`],
+    likes: [String.raw`${NUM}\s+likes?\b`, String.raw`${NUM}\s+(?:إعجابات|إعجاب)`],
   };
 
   /**
@@ -172,10 +199,10 @@
    * `overrides` (platform-specific readings) win over the generic text patterns.
    */
   function engagement(root, overrides = {}) {
-    const sources = [root.innerText || ''];
+    const sources = [normalize(root.innerText || '')];
     root.querySelectorAll('[aria-label]').forEach((n) => {
       const label = n.getAttribute('aria-label');
-      if (label && /\d/.test(label) && label.length < 200) sources.push(label);
+      if (label && label.length < 200 && /\d/.test(normalize(label))) sources.push(normalize(label));
     });
     const text = sources.join('\n');
     const out = {};
@@ -278,7 +305,10 @@
     if (!alive || settings.paused) return;
     for (const def of defs) {
       if (settings.platforms?.[def.platform] === false) continue;
-      if (def.active && !def.active()) continue;
+      if (def.active && !def.active()) {
+        def.onInactive?.();
+        continue;
+      }
       if (def.scan) {
         try {
           def.scan();
@@ -324,7 +354,7 @@
   }
 
   window.__adspy = {
-    SPONSORED, settings, register, send, badge, text, lines, longest, cleanUrl, decodeRedirect,
+    SPONSORED, normalize, settings, register, send, badge, text, lines, longest, cleanUrl, decodeRedirect,
     domainOf, isExternal, findLanding, findCta, collectMedia, engagement, parseCount, hash,
   };
 })();
