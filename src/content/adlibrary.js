@@ -153,7 +153,7 @@
       bar.appendChild(pill);
     }
     const btn = document.createElement('button');
-    btn.textContent = 'Save to AdSpy';
+    btn.textContent = 'Save to Adlumi';
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();

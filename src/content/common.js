@@ -276,7 +276,7 @@
   }
 
   let styleInjected = false;
-  function badge(el, label = 'AdSpy ✓') {
+  function badge(el, label = 'Adlumi ✓') {
     if (!styleInjected) {
       const style = document.createElement('style');
       style.textContent = `.adspy-badge{position:absolute;top:6px;right:6px;z-index:2147483000;background:#6d4aff;color:#fff;font:600 11px/1 system-ui,sans-serif;padding:4px 7px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,.25);pointer-events:none;letter-spacing:.2px}`;

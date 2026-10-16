@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AdSpy Lens</title>
+  <title>Adlumi</title>
   <link rel="icon" href="../icons/icon48.png" />
   <link rel="stylesheet" href="theme.css" />
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
   <aside class="nav">
-    <div class="brand"><img src="../icons/icon48.png" alt="" /> AdSpy Lens</div>
+    <div class="brand"><img src="../icons/icon48.png" alt="" /> Adlumi</div>
     <button data-view="library" class="active">🗂️ Ad Library <em id="nav-count"></em></button>
     <button data-view="search">🔎 Meta Ad Search</button>
     <button data-view="insights">📊 Market Intelligence</button>
@@ -22,7 +22,7 @@
     <!-- ================= LIBRARY ================= -->
     <section id="view-library" class="view">
       <div id="welcome" class="welcome" hidden>
-        <h2>Welcome to AdSpy Lens 👋</h2>
+        <h2>Welcome to Adlumi 👋</h2>
         <p>Browse Facebook, Instagram, YouTube, LinkedIn, Reddit, X or Google Search as usual — every ad you scroll past is saved here automatically with its copy, creative, CTA and landing page. On the <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener">Meta Ad Library</a> you get "days running" badges and one-click saving.</p>
         <button class="ghost" id="welcome-close">Got it</button>
       </div>
@@ -77,7 +77,7 @@
     <!-- ================= META AD LIBRARY API ================= -->
     <section id="view-search" class="view" hidden>
       <h2>Search the Meta Ad Library</h2>
-      <p class="sub">Searches Meta's official <a href="https://www.facebook.com/ads/library/api/" target="_blank" rel="noopener">Ad Library API</a> with your own access token (add it in Settings). Meta only returns commercial ads that were delivered in the EU/UK; political &amp; issue ads are returned for every country. For anything else, use the <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener">Ad Library website</a> — AdSpy adds save buttons there.</p>
+      <p class="sub">Searches Meta's official <a href="https://www.facebook.com/ads/library/api/" target="_blank" rel="noopener">Ad Library API</a> with your own access token (add it in Settings). Meta only returns commercial ads that were delivered in the EU/UK; political &amp; issue ads are returned for every country. For anything else, use the <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener">Ad Library website</a> — Adlumi adds save buttons there.</p>
       <form id="api-form" class="filters">
         <input id="api-q" type="search" placeholder="Keyword or brand, e.g. &quot;protein powder&quot;" required />
         <input id="api-country" type="text" value="DE,FR,IT,ES,NL" title="Comma-separated ISO country codes" />
@@ -117,7 +117,7 @@
       <div class="panel">
         <h3>Capture</h3>
         <label class="row"><span>Capture ads automatically</span><span class="switch"><input type="checkbox" id="s-enabled" /><span></span></span></label>
-        <label class="row"><span>Show “AdSpy ✓” badge on captured ads</span><span class="switch"><input type="checkbox" id="s-badges" /><span></span></span></label>
+        <label class="row"><span>Show “Adlumi ✓” badge on captured ads</span><span class="switch"><input type="checkbox" id="s-badges" /><span></span></span></label>
         <label class="row"><span>Store thumbnails locally (keeps previews after CDN links expire)</span><span class="switch"><input type="checkbox" id="s-thumbs" /><span></span></span></label>
         <div id="s-platforms"></div>
       </div>

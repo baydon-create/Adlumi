@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy – Adlumi</title>
+  <meta name="description" content="How the Adlumi browser extension handles your data: everything stays in your browser." />
+  <link rel="icon" href="icon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="./"><img src="icon.png" alt="" /> Adlumi</a>
+      <nav><a href="./">Home</a><a href="privacy.html">Privacy</a><a href="mailto:SUPPORT_EMAIL">Support</a></nav>
+    </header>
+
+    <article class="doc">
+      <h1>Privacy Policy</h1>
+      <p><strong>Effective date:</strong> October 16, 2026</p>
+
+      <p class="note"><strong>In short:</strong> Adlumi stores everything it collects <strong>only in your own browser</strong>. We do not run servers that receive your data, we have no user accounts, we use no analytics or tracking, and we never sell or share your data.</p>
+
+      <h2>1. What Adlumi does</h2>
+      <p>Adlumi is a browser extension for advertising research. It helps you save and analyze ads you choose to view, mainly in the Meta Ad Library and in your own social feeds and search results.</p>
+
+      <h2>2. What information the extension reads</h2>
+      <p>When you visit the following websites, Adlumi reads the content of the page to recognize advertisements: facebook.com (including the Meta Ad Library), instagram.com, youtube.com, linkedin.com, reddit.com, x.com / twitter.com and Google Search result pages. Unless you turn a site off in Settings, it captures ads on these sites automatically while you browse.</p>
+      <p>For each ad it detects, Adlumi saves:</p>
+      <ul>
+        <li>the advertiser's name and public page link, and the ad's text, headline and call-to-action button label;</li>
+        <li>links to the ad's images and the destination (landing page) URL;</li>
+        <li>publicly displayed details such as start date, active status and engagement counts (reactions, comments, shares, views);</li>
+        <li>for Google ads, the search keyword that showed the ad;</li>
+        <li>the date and time you saw the ad and how many times you saw it.</li>
+      </ul>
+      <p>Adlumi does <strong>not</strong> read or save your private messages, your friends' posts, your profile, passwords, or any content that is not an advertisement.</p>
+
+      <h2>3. Where your data is stored</h2>
+      <p>All data is stored locally on your device in your browser's extension storage (IndexedDB and <code>chrome.storage</code>). It is never sent to the developer. Your notes, tags, favorites and settings are stored the same way.</p>
+
+      <h2>4. Network requests the extension makes</h2>
+      <ul>
+        <li><strong>Ad images:</strong> to keep previews working after links expire, Adlumi downloads a copy of each saved ad's image from the platform's image servers (for example fbcdn.net) and stores a small thumbnail locally. You can turn this off in Settings.</li>
+        <li><strong>Meta Ad Library API (optional):</strong> if you enter your own Meta access token, searches you run in "Meta Ad Search" are sent to Meta (graph.facebook.com) together with your token. Your token is stored only in your browser. Meta's own privacy policy applies to those requests.</li>
+        <li><strong>Landing page analysis (optional):</strong> when you click "Analyze landing page", Chrome first asks your permission for that website. After you allow it, Adlumi loads that page (and, for Shopify stores, its public product list) to detect the technology and prices it shows. Nothing is sent to that website beyond a normal page request.</li>
+      </ul>
+      <p>No other network requests are made. Adlumi contains no analytics, advertising or tracking code, and it does not load remote code.</p>
+
+      <h2>5. How we use information</h2>
+      <p>Information is used only to provide the extension's features to you on your device: your ad library, search, filters, estimates and reports. We do not use it for advertising, profiling, creditworthiness or any purpose unrelated to the extension.</p>
+      <p>Adlumi's use of information complies with the <a href="https://developer.chrome.com/docs/webstore/program-policies/user-data-faq" target="_blank" rel="noopener">Chrome Web Store User Data Policy</a>, including the Limited Use requirements.</p>
+
+      <h2>6. Sharing and selling</h2>
+      <p>We do not sell, rent, transfer or share your data with anyone. Because your data never reaches us, we could not share it even if asked.</p>
+
+      <h2>7. Your control over your data</h2>
+      <ul>
+        <li>Export your data at any time: <em>Dashboard → Settings → Export (JSON or CSV)</em>.</li>
+        <li>Delete individual ads, or everything: <em>Dashboard → Settings → Delete all data</em>.</li>
+        <li>Turn capture off for any site, or pause it entirely, from the toolbar popup or Settings.</li>
+        <li>Uninstalling the extension removes all of its stored data from your browser.</li>
+      </ul>
+
+      <h2>8. Children</h2>
+      <p>Adlumi is a business tool and is not directed at children under 13 (or the minimum age in your country).</p>
+
+      <h2>9. Changes to this policy</h2>
+      <p>If this policy changes, the updated version will be posted on this page with a new effective date. Material changes will also be described in the extension's release notes.</p>
+
+      <h2>10. Contact</h2>
+      <p>Questions about privacy: <a href="mailto:SUPPORT_EMAIL">SUPPORT_EMAIL</a></p>
+
+      <p class="note">Adlumi is an independent product. It is not affiliated with, endorsed by or sponsored by Meta Platforms, Inc., Google, LinkedIn, Reddit or X Corp. All trademarks belong to their respective owners.</p>
+    </article>
+
+    <footer><a href="./">Home</a><a href="privacy.html">Privacy Policy</a><a href="mailto:SUPPORT_EMAIL">Support</a>© 2026 Adlumi</footer>
+  </div>
+</body>
+</html>

@@ -43,7 +43,7 @@ export const INDUSTRIES = [
   { key: 'tech', label: 'Consumer tech & gadgets', goal: 'purchase', cvr: [0.008, 0.02], aov: [50, 160], cpm: 1.05,
     re: /\b(gadgets?|headphones|earbuds|chargers?|phone case|laptops?|cameras?|smart home|drones?|speakers?|smartwatch|keyboard)\b/gi },
   { key: 'travel', label: 'Travel', goal: 'booking', cvr: [0.01, 0.03], aov: [150, 600], cpm: 1,
-    re: /\b(hotels?|flights?|travel|vacation|resort|booking|tours?|cruise|getaway|holiday)\b/gi },
+    re: /\b(hotels?|flights?|travel|vacation|resort|tours?|cruise|getaway|itinerary|airbnb|all-inclusive)\b/gi },
   { key: 'saas', label: 'Software / SaaS / B2B', goal: 'sign-up', cvr: [0.03, 0.08], aov: null, cpm: 1.25,
     re: /\b(software|saas|crm|platform|automat\w*|workflows?|dashboard|api|free trial|b2b|teams?|productivity|integrations?|ai tool|analytics)\b/gi },
   { key: 'finance', label: 'Finance & insurance', goal: 'lead', cvr: [0.02, 0.06], aov: null, cpm: 1.4,

@@ -741,9 +741,9 @@ function bindSettings() {
   $('#s-cvr').addEventListener('change', (e) => model({ cvrOverride: e.target.value }));
   $('#s-aov').addEventListener('change', (e) => model({ aovOverride: e.target.value }));
 
-  $('#export-json').addEventListener('click', () => download('adspy-ads.json', JSON.stringify(ADS, null, 2), 'application/json'));
-  $('#export-csv').addEventListener('click', () => download('adspy-ads.csv', toCsv(ADS), 'text/csv'));
-  $('#export-filtered').addEventListener('click', () => download('adspy-results.csv', toCsv(filtered), 'text/csv'));
+  $('#export-json').addEventListener('click', () => download('adlumi-ads.json', JSON.stringify(ADS, null, 2), 'application/json'));
+  $('#export-csv').addEventListener('click', () => download('adlumi-ads.csv', toCsv(ADS), 'text/csv'));
+  $('#export-filtered').addEventListener('click', () => download('adlumi-results.csv', toCsv(filtered), 'text/csv'));
   $('#import').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;

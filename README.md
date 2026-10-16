@@ -1,6 +1,6 @@
-# AdSpy Lens — ad intelligence Chrome extension
+# Adlumi: competitor ad research for Chrome
 
-A PowerAdSpy-style ad spy tool that runs entirely in your browser. As you browse, it saves every ad you scroll past into a searchable library. It also adds research tools to the Meta Ad Library.
+An ad research tool that runs entirely in your browser. As you browse, it saves every ad you scroll past into a searchable library. It also adds research tools to the Meta Ad Library.
 
 ## Features
 
@@ -23,7 +23,7 @@ A PowerAdSpy-style ad spy tool that runs entirely in your browser. As you browse
 
 ## How the estimates work (and how accurate they are)
 
-Competitors' spend, CPM, CTR, CPA and revenue are private, and no tool can see them. AdSpy Lens models them from the **strongest public signal available for each ad**, in this order:
+Competitors' spend, CPM, CTR, CPA and revenue are private, and no tool can see them. Adlumi models them from the **strongest public signal available for each ad**, in this order:
 
 1. **Meta-disclosed spend and impressions ranges** (political and issue ads): high confidence, and the advertiser's actual CPM.
 2. **X view counts** (these are impressions): medium.
@@ -45,9 +45,9 @@ Use the dollar figures to **compare competitors with each other**. Treat them as
 ## Install (developer mode)
 
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
-2. Download the repo (`git clone https://github.com/baydon-create/adspy-lens.git`, or **Code → Download ZIP** and unzip it), then click **Load unpacked** and select the repo folder (the one containing `manifest.json`).
+2. Download the repo (`git clone https://github.com/baydon-create/adlumi.git`, or **Code → Download ZIP** and unzip it), then click **Load unpacked** and select the repo folder (the one containing `manifest.json`).
 3. Pin the extension. The dashboard opens on first install, and you can always reach it from the popup.
-4. Browse your feeds. Captured ads get a purple **AdSpy ✓** badge, and the toolbar icon shows a count for the current tab.
+4. Browse your feeds. Captured ads get a purple **Adlumi ✓** badge, and the toolbar icon shows a count for the current tab.
 
 No build step is needed. It's plain JavaScript on Manifest V3.
 
@@ -78,3 +78,17 @@ To add a platform, write a `src/content/<site>.js` that calls `__adspy.register(
 ## Privacy
 
 Everything is stored locally in IndexedDB and `chrome.storage`. Nothing is sent to any server except Meta's Graph API (only when you search it) and landing pages you choose to analyze.
+
+## Publishing to the Chrome Web Store
+
+Everything needed for the submission is in this repo:
+
+| What | Where |
+|---|---|
+| Upload package | `./scripts/package.sh` → `dist/adlumi-<version>.zip` (extension files only) |
+| Listing text, permission justifications, data-use answers, reviewer notes | `store/LISTING.md` |
+| Icon, 5 screenshots (1280×800), promo tiles (440×280, 1400×560) | `store/assets/` |
+| Website + privacy policy (GitHub Pages) | `docs/` → enable *Settings → Pages → Deploy from branch → main → /docs* |
+
+Before submitting, replace the placeholders `SUPPORT_EMAIL`, `YOUR_GITHUB_USERNAME` and `CHROME_WEB_STORE_URL` in `docs/` and `store/LISTING.md`.
+For every update: bump `version` in `manifest.json`, run `./scripts/package.sh`, and upload the new zip.

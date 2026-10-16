@@ -379,7 +379,7 @@ function exportCompetitors(comps) {
   const header = ['advertiser', 'ads', 'active', 'est_spend_mid', 'est_spend_low', 'est_spend_high', 'share_of_voice', 'run_rate_month', 'avg_days', 'max_days', 'avg_score', 'main_angle', 'main_offer', 'formats', 'platforms'];
   const rows = comps.map((c) => [c.name, c.ads, c.active, Math.round(c.spend), Math.round(c.spendLo), Math.round(c.spendHi), c.sov.toFixed(4), Math.round(c.runRate),
     Math.round(c.avgDays), c.maxDays, Math.round(c.avgScore), top(c.angles)[0] || '', top(c.offers)[0] || '', top(c.formats, 3).join('; '), top(c.platforms, 5).join('; ')]);
-  C.download('adspy-competitors.csv', C.toCsvRows([header, ...rows]), 'text/csv');
+  C.download('adlumi-competitors.csv', C.toCsvRows([header, ...rows]), 'text/csv');
 }
 
 // ---------------------------------------------------------------- competitor deep dive
