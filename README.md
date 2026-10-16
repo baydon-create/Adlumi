@@ -88,6 +88,7 @@ Everything needed for the submission is in this repo:
 | Upload package | `./scripts/package.sh` → `dist/adlumi-<version>.zip` (extension files only) |
 | Listing text, permission justifications, data-use answers, reviewer notes | `store/LISTING.md` |
 | Icon, 5 screenshots (1280×800), promo tiles (440×280, 1400×560) | `store/assets/` |
+| Promo video (1080p, 57 s) and the script that renders it | `store/adlumi-promo.mp4`, `scripts/promo-video/` |
 | Website + privacy policy (GitHub Pages) | `docs/` → enable *Settings → Pages → Deploy from branch → main → /docs* |
 
 After the store approves the extension, point the "Coming soon" button in `docs/index.html` at the store link (see the comment there).

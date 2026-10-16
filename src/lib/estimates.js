@@ -29,7 +29,7 @@ export const INDUSTRIES = [
   { key: 'fashion', label: 'Fashion & accessories', goal: 'purchase', cvr: [0.01, 0.025], aov: [45, 110], cpm: 1,
     re: /\b(dress|shirt|t-shirt|hoodie|sneakers?|shoes|boots|jewel(le)?ry|necklace|rings?|bracelet|apparel|clothing|fashion|leggings|outfit|handbag|wallet|sunglasses|swimwear|lingerie)\b/gi },
   { key: 'beauty', label: 'Beauty & skincare', goal: 'purchase', cvr: [0.015, 0.035], aov: [30, 75], cpm: 1,
-    re: /\b(skin|skincare|serum|makeup|beauty|hair|lashes|cosmetics?|moisturi[sz]er|anti-aging|wrinkles?|fragrance|perfume|acne|glow|sunscreen|nails?)\b/gi },
+    re: /\b(skin|skincare|serums?|makeup|beauty|hair|lashes|cosmetics?|moisturi[sz]ers?|anti-aging|wrinkles?|fragrance|perfume|acne|glow|sunscreen|spf|nails?|retinol|cleansers?|toners?|lotions?|creams?|peptides?|hyaluronic|niacinamide|lipstick|mascara|foundation|concealer)\b/gi },
   { key: 'health', label: 'Health & supplements', goal: 'purchase', cvr: [0.015, 0.04], aov: [40, 95], cpm: 1.05,
     re: /\b(supplements?|vitamins?|protein|gut|probiotics?|weight ?loss|keto|collagen|sleep|wellness|health|detox|joints?|immune|bloating|energy|metabolism|gummies)\b/gi },
   { key: 'fitness', label: 'Fitness', goal: 'purchase', cvr: [0.01, 0.03], aov: [40, 120], cpm: 1,

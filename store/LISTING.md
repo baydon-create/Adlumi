@@ -78,6 +78,9 @@ Support: dr.mohamedbaydon@gmail.com
 | Small promo tile | `promo-small-440x280.png` | 440×280 |
 | Marquee promo tile | `promo-marquee-1400x560.png` | 1400×560 |
 
+### Promo video
+Upload `store/adlumi-promo.mp4` to YouTube (Public or Unlisted), then paste the YouTube link into the **"YouTube video"** field of the store listing.
+
 ### Additional fields
 - **Official URL / Homepage:** `https://baydon-create.github.io/Adlumi/`
 - **Support URL:** `https://baydon-create.github.io/Adlumi/` (or a `mailto:` link)
