@@ -1,8 +1,7 @@
 # Adlumi: Chrome Web Store submission pack
 
 Copy each block into the matching field of the Chrome Web Store Developer Dashboard
-(https://chrome.google.com/webstore/devconsole). Replace every `SUPPORT_EMAIL` and
-`YOUR_GITHUB_USERNAME` placeholder first.
+(https://chrome.google.com/webstore/devconsole). Replace every `SUPPORT_EMAIL` placeholder first.
 
 ---
 
@@ -61,7 +60,7 @@ Note: spend and cost figures are estimates built from public signals and industr
 
 Adlumi is an independent product and is not affiliated with, endorsed by or sponsored by Meta Platforms, Inc., Google, LinkedIn, Reddit or X Corp.
 
-Privacy policy: https://YOUR_GITHUB_USERNAME.github.io/adlumi/privacy.html
+Privacy policy: https://baydon-create.github.io/adlumi/privacy.html
 Support: SUPPORT_EMAIL
 ```
 
@@ -80,8 +79,8 @@ Support: SUPPORT_EMAIL
 | Marquee promo tile | `promo-marquee-1400x560.png` | 1400×560 |
 
 ### Additional fields
-- **Official URL / Homepage:** `https://YOUR_GITHUB_USERNAME.github.io/adlumi/`
-- **Support URL:** `https://YOUR_GITHUB_USERNAME.github.io/adlumi/` (or a `mailto:` link)
+- **Official URL / Homepage:** `https://baydon-create.github.io/adlumi/`
+- **Support URL:** `https://baydon-create.github.io/adlumi/` (or a `mailto:` link)
 - **Mature content:** No
 
 ---
@@ -144,7 +143,7 @@ No, I am not using remote code.
 
 ### Privacy policy URL
 ```
-https://YOUR_GITHUB_USERNAME.github.io/adlumi/privacy.html
+https://baydon-create.github.io/adlumi/privacy.html
 ```
 
 ---
