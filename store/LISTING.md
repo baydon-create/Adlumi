@@ -60,7 +60,7 @@ Note: spend and cost figures are estimates built from public signals and industr
 
 Adlumi is an independent product and is not affiliated with, endorsed by or sponsored by Meta Platforms, Inc., Google, LinkedIn, Reddit or X Corp.
 
-Privacy policy: https://baydon-create.github.io/adlumi/privacy.html
+Privacy policy: https://baydon-create.github.io/Adlumi/privacy.html
 Support: dr.mohamedbaydon@gmail.com
 ```
 
@@ -79,8 +79,8 @@ Support: dr.mohamedbaydon@gmail.com
 | Marquee promo tile | `promo-marquee-1400x560.png` | 1400×560 |
 
 ### Additional fields
-- **Official URL / Homepage:** `https://baydon-create.github.io/adlumi/`
-- **Support URL:** `https://baydon-create.github.io/adlumi/` (or a `mailto:` link)
+- **Official URL / Homepage:** `https://baydon-create.github.io/Adlumi/`
+- **Support URL:** `https://baydon-create.github.io/Adlumi/` (or a `mailto:` link)
 - **Mature content:** No
 
 ---
@@ -143,7 +143,7 @@ No, I am not using remote code.
 
 ### Privacy policy URL
 ```
-https://baydon-create.github.io/adlumi/privacy.html
+https://baydon-create.github.io/Adlumi/privacy.html
 ```
 
 ---

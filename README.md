@@ -45,7 +45,7 @@ Use the dollar figures to **compare competitors with each other**. Treat them as
 ## Install (developer mode)
 
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
-2. Download the repo (`git clone https://github.com/baydon-create/adlumi.git`, or **Code → Download ZIP** and unzip it), then click **Load unpacked** and select the repo folder (the one containing `manifest.json`).
+2. Download the repo (`git clone https://github.com/baydon-create/Adlumi.git`, or **Code → Download ZIP** and unzip it), then click **Load unpacked** and select the repo folder (the one containing `manifest.json`).
 3. Pin the extension. The dashboard opens on first install, and you can always reach it from the popup.
 4. Browse your feeds. Captured ads get a purple **Adlumi ✓** badge, and the toolbar icon shows a count for the current tab.
 
@@ -70,7 +70,7 @@ To add a platform, write a `src/content/<site>.js` that calls `__adspy.register(
 ## Limitations
 
 - **Capture depends on each site's HTML.** Facebook in particular obfuscates its "Sponsored" label and changes its markup often, so the detector checks several independent signals. When a site changes its markup, update its file in `src/content/`.
-- **You can only spy on ads you are shown.** Services like PowerAdSpy run crawler farms with thousands of profiles to build databases of millions of ads. A single extension sees your feed, plus whatever you browse in the Ad Library. To grow coverage, browse with different interests, or have a team use the extension and merge JSON exports.
+- **You can only research ads you are shown.** Large commercial ad-intelligence services run crawler farms with thousands of profiles to build databases of millions of ads. A single extension sees your feed, plus whatever you browse in the Ad Library. To grow coverage, browse with different interests, or have a team use the extension and merge JSON exports.
 - **Limits of the Meta Ad Library API:** for commercial ads it only returns ads delivered in the EU/UK. It does not return images or videos (cards link to the Ad Library page). You need a token from the Graph API Explorer after verifying your identity at facebook.com/ID.
 - **Landing page analysis asks permission for each site** (Chrome's optional host permissions), so the extension never reads arbitrary sites in the background.
 - **Terms of service:** automated scraping is restricted by Meta and other platforms. This extension only records pages you load yourself, at human speed. Check the terms that apply to you before using it commercially.

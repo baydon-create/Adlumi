@@ -41,7 +41,7 @@
 
       <h2>4. Network requests the extension makes</h2>
       <ul>
-        <li><strong>Ad images:</strong> to keep previews working after links expire, Adlumi downloads a copy of each saved ad's image from the platform's image servers (for example fbcdn.net) and stores a small thumbnail locally. You can turn this off in Settings.</li>
+        <li><strong>Ad images:</strong> to keep previews working after links expire, Adlumi downloads a copy of each saved ad's image from the platform's image servers (for example fbcdn.net) and stores a small thumbnail locally. You can turn this off in Settings. When no local thumbnail exists, the dashboard displays the image directly from that image server.</li>
         <li><strong>Meta Ad Library API (optional):</strong> if you enter your own Meta access token, searches you run in "Meta Ad Search" are sent to Meta (graph.facebook.com) together with your token. Your token is stored only in your browser. Meta's own privacy policy applies to those requests.</li>
         <li><strong>Landing page analysis (optional):</strong> when you click "Analyze landing page", Chrome first asks your permission for that website. After you allow it, Adlumi loads that page (and, for Shopify stores, its public product list) to detect the technology and prices it shows. Nothing is sent to that website beyond a normal page request.</li>
       </ul>
