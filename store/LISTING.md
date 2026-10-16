@@ -1,7 +1,7 @@
 # Adlumi: Chrome Web Store submission pack
 
 Copy each block into the matching field of the Chrome Web Store Developer Dashboard
-(https://chrome.google.com/webstore/devconsole). Replace every `SUPPORT_EMAIL` placeholder first.
+(https://chrome.google.com/webstore/devconsole). All placeholders are filled in.
 
 ---
 
@@ -61,7 +61,7 @@ Note: spend and cost figures are estimates built from public signals and industr
 Adlumi is an independent product and is not affiliated with, endorsed by or sponsored by Meta Platforms, Inc., Google, LinkedIn, Reddit or X Corp.
 
 Privacy policy: https://baydon-create.github.io/adlumi/privacy.html
-Support: SUPPORT_EMAIL
+Support: dr.mohamedbaydon@gmail.com
 ```
 
 ### Category

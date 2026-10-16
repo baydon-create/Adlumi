@@ -90,5 +90,5 @@ Everything needed for the submission is in this repo:
 | Icon, 5 screenshots (1280×800), promo tiles (440×280, 1400×560) | `store/assets/` |
 | Website + privacy policy (GitHub Pages) | `docs/` → enable *Settings → Pages → Deploy from branch → main → /docs* |
 
-Before submitting, replace the placeholders `SUPPORT_EMAIL` and `CHROME_WEB_STORE_URL` in `docs/` and `store/LISTING.md`.
+After the store approves the extension, point the "Coming soon" button in `docs/index.html` at the store link (see the comment there).
 For every update: bump `version` in `manifest.json`, run `./scripts/package.sh`, and upload the new zip.
