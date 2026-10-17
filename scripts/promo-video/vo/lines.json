@@ -1,0 +1,13 @@
+[
+  { "id": "01-intro",       "text": "Meet Adlumi: the fastest way to find the competitor ads that are actually winning." },
+  { "id": "02-hook",        "text": "Still scrolling the Ad Library for hours, guessing which ads really work?" },
+  { "id": "03-search",      "text": "Just search any brand or keyword in the Meta Ad Library." },
+  { "id": "04-badges",      "text": "Adlumi instantly shows how long every ad has been running, and how many variations the advertiser is scaling." },
+  { "id": "05-save",        "text": "Save every ad on the page with one click." },
+  { "id": "06-library",     "text": "Everything lands in your own library. Sort by Winning Score, and the strongest ads rise straight to the top." },
+  { "id": "07-estimates",   "text": "Open any ad to see estimated spend, CPM, cost per purchase and ROAS, shown as honest ranges with a confidence level." },
+  { "id": "08-market",      "text": "Market Intelligence shows who dominates your niche, and which angles, offers and hooks appear most in winning ads." },
+  { "id": "09-competitor",  "text": "Deep-dive any competitor in one click: their spend run-rate, launch cadence, and every funnel page." },
+  { "id": "10-privacy",     "text": "And it's private by design. No account, no tracking. Your research stays in your browser." },
+  { "id": "11-cta",         "text": "Adlumi. Competitor ad research for Chrome. Get it free on the Chrome Web Store." }
+]

@@ -9,6 +9,8 @@ const DIR = new URL('.', import.meta.url).pathname;
 const EXT = new URL('../..', import.meta.url).pathname.replace(/\/$/, ''); // repo root = the extension
 const FRAMES = `${DIR}frames`;
 const FPS = 30;
+const VO_DIR = `${DIR}vo`;
+const LINES = JSON.parse(fs.readFileSync(`${VO_DIR}/lines.json`, 'utf8'));
 fs.rmSync(FRAMES, { recursive: true, force: true });
 fs.mkdirSync(FRAMES, { recursive: true });
 
@@ -119,6 +121,24 @@ async function scrollEl(selector, to, sec) {
   await animate(sec, (t) => page.evaluate(({ s, y }) => (s ? (document.querySelector(s).scrollTop = y) : window.scrollTo(0, y)), { s: selector, y: from + (to - from) * t }));
 }
 
+// ---------------------------------------------------------------- voiceover sync
+// Each line starts at voStart(id); voPad(id) holds the scene until the line has finished.
+// With vo/<id>.(wav|mp3) present the real clip length is used and the clip is mixed in;
+// otherwise the scene is timed for natural speech (~2.6 words/s) so any narration fits.
+const voFile = (id) => ['wav', 'mp3', 'm4a'].map((e) => `${VO_DIR}/${id}.${e}`).find((f) => fs.existsSync(f));
+const probe = (f) => parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${f}"`).toString());
+const voDur = (id) => {
+  const f = voFile(id);
+  return f ? probe(f) : LINES.find((l) => l.id === id).text.split(/\s+/).length / 2.6;
+};
+const marks = [];
+function voStart(id) { marks.push({ id, frame, sec: frame / FPS, dur: voDur(id) }); }
+async function voPad(id, tail = 0.35) {
+  const m = marks.find((x) => x.id === id);
+  const need = Math.ceil((m.dur + tail) * FPS) - (frame - m.frame);
+  if (need > 0) await hold(need / FPS);
+}
+
 // ---------------------------------------------------------------- title cards
 const icon = 'data:image/png;base64,' + fs.readFileSync(`${EXT}/store/assets/icon-512.png`).toString('base64');
 const cardPage = await ctx.newPage();
@@ -148,10 +168,14 @@ async function titleCard(html, sec, { inSec = 0.9 } = {}) {
 
 // ================================================================= STORYBOARD
 // 1. Opening
-await titleCard(`<img class="logo a" src="${icon}"><h1 class="a">Adlumi</h1><p class="a">Find the competitor ads that are <b class="grad">actually winning</b></p>`, 2.2);
+voStart('01-intro');
+await titleCard(`<img class="logo a" src="${icon}"><h1 class="a">Adlumi</h1><p class="a">Find the competitor ads that are <b class="grad">actually winning</b></p>`, 1.0);
+await voPad('01-intro');
 await fadeOut(0.35);
 // 2. Hook
-await titleCard(`<h2 class="a">Still scrolling the Ad Library for hours,</h2><h2 class="a">guessing which ads <span class="grad">really work?</span></h2>`, 1.8, { inSec: 0.8 });
+voStart('02-hook');
+await titleCard(`<h2 class="a">Still scrolling the Ad Library for hours,</h2><h2 class="a">guessing which ads <span class="grad">really work?</span></h2>`, 0.8, { inSec: 0.8 });
+await voPad('02-hook');
 await fadeOut(0.35);
 
 // 3. Meta Ad Library enhancer (illustrative page, fictional advertisers)
@@ -176,9 +200,12 @@ await page.waitForTimeout(600);
 await overlay();
 await setStyle('__fade', { opacity: '1' });
 await fadeIn(0.35);
+voStart('03-search');
 await caption(step(1, 'Search any brand or keyword in the Meta Ad Library'));
-await hold(1.2);
+await hold(0.6);
+await voPad('03-search', 0.15);
 const firstPill = page.locator('.adspy-lib-bar .pill').first();
+voStart('04-badges');
 await moveToEl(firstPill, 0.9);
 await highlight(firstPill);
 await caption('Adlumi shows how long every ad has been running 🔥');
@@ -186,12 +213,15 @@ await hold(1.6);
 await unhighlight();
 await highlight(page.locator('.adspy-lib-bar .pill').nth(1));
 await caption('…and how many variations the advertiser is scaling');
-await hold(1.4);
+await hold(1.0);
+await voPad('04-badges', 0.1);
 await unhighlight();
+voStart('05-save');
 await caption('Save every ad on the page with one click');
 await clickEl(page.locator('#adspy-save-all'), 1.0);
 await page.waitForTimeout(500);
-await hold(1.4);
+await hold(0.8);
+await voPad('05-save');
 await fadeOut(0.35);
 
 // 4. Library ranked by winning score
@@ -204,6 +234,7 @@ page = dash;
 await overlay();
 await setStyle('__fade', { opacity: '1' });
 await fadeIn(0.35);
+voStart('06-library');
 await caption(step(2, 'Every saved ad lands in your own searchable library'));
 await hold(1.4);
 const sort = page.locator('#f-sort');
@@ -213,10 +244,12 @@ await sort.selectOption('score');
 await page.waitForTimeout(500);
 await caption('Sort by Winning Score to surface the strongest ads first ⚡');
 await highlight(page.locator('.card .score').first(), 0.3, 5);
-await hold(1.8);
+await hold(1.2);
+await voPad('06-library', 0.1);
 await unhighlight();
 
 // 5. Ad detail with performance estimate
+voStart('07-estimates');
 await caption('Open any ad for estimated spend, CPM, CPA and ROAS');
 // open the best-supported visible ad (Meta-reported reach -> medium confidence)
 const pickIdx = await page.evaluate(async () => {
@@ -235,13 +268,15 @@ await hold(1.2);
 await moveToEl(page.locator('#drawer table.est'), 0.8, 0.75, 0.35);
 await highlight(page.locator('#drawer table.est'), 0.3, 4);
 await caption('Every number is an honest range with a confidence level');
-await hold(2.2);
+await hold(1.4);
+await voPad('07-estimates', 0.2);
 await unhighlight();
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 await capLeft(false);
 
 // 6. Market intelligence
+voStart('08-market');
 await caption(step(3, 'Market Intelligence: see who dominates your niche'));
 await clickEl(page.locator('button[data-view="insights"]'), 0.9);
 await page.waitForTimeout(900);
@@ -255,10 +290,12 @@ const anglesY = await page.evaluate(() => {
 });
 await caption('…and which angles, offers and hooks over-index in winning ads');
 await scrollEl(null, anglesY, 1.4);
-await hold(2.4);
+await hold(1.2);
+await voPad('08-market', 0.2);
 
 // 7. Competitor deep dive
 await scrollEl(null, 0, 1.0);
+voStart('09-competitor');
 await caption('Deep-dive any competitor in one click');
 await clickEl(page.locator('#market table.data tbody tr').first(), 0.9);
 await page.waitForTimeout(700);
@@ -267,20 +304,48 @@ await capLeft(true);
 await hold(1.6);
 await caption('Spend run-rate, launch cadence and every funnel page');
 await scrollEl('#drawer', 520, 1.4);
-await hold(1.4);
+await hold(0.8);
+await voPad('09-competitor');
 await fadeOut(0.35);
 
 // 8. Privacy + 9. Call to action
-await titleCard(`<h2 class="a">🔒 Private by design</h2><p class="a">No account. No tracking. Your research stays in your browser.</p>`, 1.8, { inSec: 0.7 });
+voStart('10-privacy');
+await titleCard(`<h2 class="a">🔒 Private by design</h2><p class="a">No account. No tracking. Your research stays in your browser.</p>`, 0.8, { inSec: 0.7 });
+await voPad('10-privacy');
 await fadeOut(0.3);
+voStart('11-cta');
 await titleCard(`<img class="logo a" src="${icon}"><h1 class="a">Adlumi</h1><p class="a">Competitor ad research for Chrome</p>
-  <div class="pill a">Free on the Chrome Web Store</div><p class="a" style="font-size:18px;margin-top:22px;opacity:.75">baydon-create.github.io/Adlumi</p>`, 3.0);
+  <div class="pill a">Free on the Chrome Web Store</div><p class="a" style="font-size:18px;margin-top:22px;opacity:.75">baydon-create.github.io/Adlumi</p>`, 1.0);
+await voPad('11-cta', 0.9);
 await fadeOut(0.5);
 
 await ctx.close();
 console.log(`frames: ${frame} (${(frame / FPS).toFixed(1)} s), demo ads: ${seeded}`);
 
 // ---------------------------------------------------------------- encode
-const out = `${EXT}/store/adlumi-promo.mp4`;
-execSync(`ffmpeg -y -loglevel error -framerate ${FPS} -i ${FRAMES}/%05d.jpg -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -movflags +faststart ${out}`);
-console.log('wrote', out, (fs.statSync(out).size / 1e6).toFixed(1), 'MB');
+const total = frame / FPS;
+const OUT_DIR = `${EXT}/store`;
+const silent = `${DIR}video-only.mp4`;
+execSync(`ffmpeg -y -loglevel error -framerate ${FPS} -i ${FRAMES}/%05d.jpg -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p ${silent}`);
+
+// subtitles (SRT) + timed narration script, always written
+const ts = (t) => new Date(t * 1000).toISOString().slice(11, 23).replace('.', ',');
+const textOf = (id) => LINES.find((l) => l.id === id).text;
+fs.writeFileSync(`${OUT_DIR}/adlumi-promo.srt`, marks.map((m, i) => `${i + 1}\n${ts(m.sec)} --> ${ts(m.sec + m.dur)}\n${textOf(m.id)}\n`).join('\n'));
+fs.writeFileSync(`${OUT_DIR}/VOICEOVER.md`, `# Adlumi promo: voiceover script\n\nTotal length ${total.toFixed(1)} s. Each line starts at the time shown.\n\n| Start | Line |\n|---|---|\n` +
+  marks.map((m) => `| ${ts(m.sec).slice(3, 8)} | ${textOf(m.id)} |`).join('\n') + '\n');
+
+const clips = marks.filter((m) => voFile(m.id));
+const out = `${OUT_DIR}/adlumi-promo.mp4`;
+if (clips.length === marks.length) {
+  // place each line at its scene start, then normalise loudness for online video (-16 LUFS)
+  const inputs = clips.map((m) => `-i "${voFile(m.id)}"`).join(' ');
+  const delays = clips.map((m, i) => `[${i + 1}:a]aresample=48000,adelay=${Math.round(m.sec * 1000)}:all=1[a${i}]`).join(';');
+  const mix = `${delays};${clips.map((_, i) => `[a${i}]`).join('')}amix=inputs=${clips.length}:normalize=0,apad,atrim=0:${total.toFixed(3)},loudnorm=I=-16:TP=-1.5:LRA=11[aout]`;
+  execSync(`ffmpeg -y -loglevel error -i ${silent} ${inputs} -filter_complex "${mix}" -map 0:v -map "[aout]" -c:v copy -c:a aac -b:a 192k -movflags +faststart ${out}`);
+  console.log(`wrote ${out} with voiceover (${clips.length} lines)`);
+} else {
+  execSync(`ffmpeg -y -loglevel error -i ${silent} -c copy -movflags +faststart ${out}`);
+  console.log(`wrote ${out} WITHOUT voiceover: ${marks.length - clips.length} of ${marks.length} clips missing in ${VO_DIR}`);
+}
+console.log(`length ${total.toFixed(1)} s; subtitles and VOICEOVER.md written to ${OUT_DIR}`);

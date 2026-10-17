@@ -3,3 +3,5 @@ adspy-lens.zip
 *.zip
 dist/
 scripts/promo-video/frames/
+scripts/promo-video/node_modules/
+scripts/promo-video/video-only.mp4
