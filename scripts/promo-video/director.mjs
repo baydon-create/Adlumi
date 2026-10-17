@@ -340,8 +340,8 @@ const out = `${OUT_DIR}/adlumi-promo.mp4`;
 if (clips.length === marks.length) {
   // place each line at its scene start, then normalise loudness for online video (-16 LUFS)
   const inputs = clips.map((m) => `-i "${voFile(m.id)}"`).join(' ');
-  const delays = clips.map((m, i) => `[${i + 1}:a]aresample=48000,adelay=${Math.round(m.sec * 1000)}:all=1[a${i}]`).join(';');
-  const mix = `${delays};${clips.map((_, i) => `[a${i}]`).join('')}amix=inputs=${clips.length}:normalize=0,apad,atrim=0:${total.toFixed(3)},loudnorm=I=-16:TP=-1.5:LRA=11[aout]`;
+  const delays = clips.map((m, i) => `[${i + 1}:a]aresample=48000,volume=0.7,highpass=f=70,adelay=${Math.round(m.sec * 1000)}:all=1[a${i}]`).join(';');
+  const mix = `${delays};${clips.map((_, i) => `[a${i}]`).join('')}amix=inputs=${clips.length}:normalize=0,apad,atrim=0:${total.toFixed(3)},loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,aformat=channel_layouts=stereo[aout]`;
   execSync(`ffmpeg -y -loglevel error -i ${silent} ${inputs} -filter_complex "${mix}" -map 0:v -map "[aout]" -c:v copy -c:a aac -b:a 192k -movflags +faststart ${out}`);
   console.log(`wrote ${out} with voiceover (${clips.length} lines)`);
 } else {
