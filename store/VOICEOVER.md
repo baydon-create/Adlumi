@@ -1,6 +1,6 @@
 # Adlumi promo: voiceover script
 
-Total length 67.7 s. Each line starts at the time shown.
+Total length 66.8 s. Each line starts at the time shown.
 
 | Start | Line |
 |---|---|
@@ -15,3 +15,9 @@ Total length 67.7 s. Each line starts at the time shown.
 | 00:48 | Deep-dive any competitor in one click: their spend run-rate, launch cadence, and every funnel page. |
 | 00:55 | And it's private by design. No account, no tracking. Your research stays in your browser. |
 | 01:01 | Adlumi. Competitor ad research for Chrome. Get it free on the Chrome Web Store. |
+
+## Voice credit (required by the license)
+
+Narration voice: Piper "en-us-libritts-high" (speaker 633), trained on LibriTTS by Zen et al., licensed CC BY 4.0. Add this line to the YouTube description:
+
+> Voiceover: Piper TTS (LibriTTS voice, CC BY 4.0)

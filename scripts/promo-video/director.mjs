@@ -333,7 +333,9 @@ const ts = (t) => new Date(t * 1000).toISOString().slice(11, 23).replace('.', ',
 const textOf = (id) => LINES.find((l) => l.id === id).text;
 fs.writeFileSync(`${OUT_DIR}/adlumi-promo.srt`, marks.map((m, i) => `${i + 1}\n${ts(m.sec)} --> ${ts(m.sec + m.dur)}\n${textOf(m.id)}\n`).join('\n'));
 fs.writeFileSync(`${OUT_DIR}/VOICEOVER.md`, `# Adlumi promo: voiceover script\n\nTotal length ${total.toFixed(1)} s. Each line starts at the time shown.\n\n| Start | Line |\n|---|---|\n` +
-  marks.map((m) => `| ${ts(m.sec).slice(3, 8)} | ${textOf(m.id)} |`).join('\n') + '\n');
+  marks.map((m) => `| ${ts(m.sec).slice(3, 8)} | ${textOf(m.id)} |`).join('\n') + '\n' +
+  '\n## Voice credit (required by the license)\n\nNarration voice: Piper "en-us-libritts-high" (speaker 633), trained on LibriTTS by Zen et al., ' +
+  'licensed CC BY 4.0. Add this line to the YouTube description:\n\n> Voiceover: Piper TTS (LibriTTS voice, CC BY 4.0)\n');
 
 const clips = marks.filter((m) => voFile(m.id));
 const out = `${OUT_DIR}/adlumi-promo.mp4`;
