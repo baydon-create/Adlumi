@@ -72,6 +72,10 @@ export function regionMultiplier(country) {
   return 0.4;
 }
 
+// Typical basket sizes shrink in lower-income markets, but far less than ad prices do.
+const AOV_BY_TIER = { 1: 1, 0.65: 0.8, 0.3: 0.55, 0.15: 0.4, 0.4: 0.6 };
+export const aovMultiplier = (country) => AOV_BY_TIER[regionMultiplier(country)];
+
 /** "1.2K" -> 1200, "3,456" -> 3456, "1,2 M" -> 1200000. */
 export function parseCount(s) {
   if (s == null) return null;
@@ -251,7 +255,11 @@ export function estimate(ad, settings = {}, now = Date.now()) {
     aov = rng(sorted[Math.floor(sorted.length * 0.25)], sorted[Math.floor(sorted.length * 0.75)] * 1.3);
     const cur = landing?.currency && landing.currency !== 'USD' ? ` (converted from ${landing.currency} at an approximate rate)` : '';
     basis.push(`Order value taken from prices found on the landing page${cur}.`);
-  } else if (industry.aov) aov = rng(...industry.aov);
+  } else if (industry.aov) {
+    const k = aovMultiplier(country);
+    aov = scale(rng(...industry.aov), k);
+    if (k !== 1) basis.push(`Order value: ${industry.label} benchmark scaled ×${k} for typical basket sizes in ${country}. Analyze the landing page to use real prices.`);
+  }
 
   let impressions = null;
   let spend = null;
